@@ -16,17 +16,17 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
   const { user, login, logout } = useAuth();
   const [query, setQuery] = useState(""); 
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Avatar dropdown
   const [loginInput, setLoginInput] = useState("");
   const [results, setResults] = useState([]); 
+  const [avatarDropdownOpen, setAvatarDropdownOpen] = useState(false); // Avatar dropdown state
   const catRef = useRef();
   const dropRef = useRef();
   const navigate = useNavigate(); 
 
-  // Close dropdowns on outside click
+  // Close search dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // Close dropdown if click is outside of the search container or dropdown
       if (
         catRef.current &&
         !catRef.current.contains(e.target) &&
@@ -35,13 +35,22 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
       ) {
         setDropdownOpen(false); 
       }
+
+      // Close avatar dropdown if click is outside the dropdown
+      if (
+        dropRef.current &&
+        !dropRef.current.contains(e.target) &&
+        !e.target.closest('.avatar-dropdown')
+      ) {
+        setAvatarDropdownOpen(false); 
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close dropdown when navigating to MangaDetail page
+  // Close search dropdown when navigating to MangaDetail page
   useEffect(() => {
     setDropdownOpen(false); 
   }, [navigate]);
@@ -182,19 +191,15 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             </AnimatePresence>
           </div>
 
-          {/* Navigation Links */}
-          <Link to="/" className="hover:text-gray-300">Search</Link>
-          <Link to="/my-list" className="hover:text-gray-300">Bookmarks</Link>
-
-          {/* User Dropdown */}
-          <div ref={dropRef} className="relative">
+          {/* Avatar Dropdown */}
+          <div ref={dropRef} className="relative avatar-dropdown">
             <button
-              onClick={() => setDropdownOpen((prev) => !prev)}
+              onClick={() => setAvatarDropdownOpen((prev) => !prev)}
               className="text-2xl"
             >
               <FaUserCircle />
             </button>
-            {dropdownOpen && (
+            {avatarDropdownOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded shadow-lg p-2 space-y-1 z-50">
                 {!user ? (
                   <>
