@@ -19,7 +19,12 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
   const [loginInput, setLoginInput] = useState("");
   const [passwordInput, setPasswordInput] = useState(""); // Password input for login
   const [loginFormVisible, setLoginFormVisible] = useState(false); // Track visibility of the login form
-  const [results, setResults] = useState([]); 
+  const [isSignUp, setIsSignUp] = useState(false); // Switch between Sign-Up and Sign-In
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loginError, setLoginError] = useState(""); // Error state for login
+  const [signUpError, setSignUpError] = useState(""); // Error state for sign-up
   const catRef = useRef();
   const dropRef = useRef();
   const searchContainerRef = useRef(); // Reference for the search container
@@ -80,7 +85,37 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
       navigate('/'); // Navigate to home after successful login
     } catch (error) {
       console.error('Login failed:', error);
-      alert('Login failed. Please check your credentials.');
+      setLoginError("Login failed. Please check your credentials."); // Set error message
+    }
+  };
+
+  // Handle sign-up form submission
+  const handleSignUpSubmit = async () => {
+    if (passwordInput !== confirmPassword) {
+      setSignUpError("Passwords do not match.");
+      return;
+    }
+
+    // Check if username or email already exists
+    const response = await fetch("http://localhost:5000/api/auth/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        email,
+        password: passwordInput,
+        confirmPassword,
+      }),
+    });
+
+    if (response.ok) {
+      setLoginFormVisible(false);
+      alert('User created successfully!');
+    } else {
+      const data = await response.json();
+      setSignUpError(data.message);
     }
   };
 
@@ -202,11 +237,9 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             Filter
           </button>
 
-          {/* My List Button - Redirects to MyList.jsx */}
+          {/* My List Button */}
           <Link to="/mylist">
-            <button
-              className="text-white hover:text-gray-300"
-            >
+            <button className="text-white hover:text-gray-300">
               My List
             </button>
           </Link>
@@ -234,27 +267,85 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             transition={{ duration: 0.3 }}
           >
             <div className="login-form bg-gray-800 p-10 rounded-lg shadow-lg w-full sm:w-120 md:w-2/3 lg:w-2/4">
-              <h2 className='pb-10 text-3xl text-center font-bold'>Login</h2>
-              <input
-                type="text"
-                placeholder="Username or Email"
-                value={loginInput}
-                onChange={(e) => setLoginInput(e.target.value)}
-                className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleLoginSubmit}
-                className="w-full bg-blue-500 text-white p-4 rounded hover:bg-blue-600 text-md"
-              >
-                Login
-              </button>
+              <h2 className='pb-10 text-3xl text-center font-bold'>{isSignUp ? 'Sign Up' : 'Login'}</h2>
+              {/* Switch between Sign-In and Sign-Up */}
+              {isSignUp ? (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                  />
+                  {signUpError && (
+                    <p className="text-red-500 mt-2 text-sm">{signUpError}</p>
+                  )}
+                  <button
+                    onClick={handleSignUpSubmit}
+                    className="w-full bg-blue-500 text-white py-2 rounded"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Username or Email"
+                    value={loginInput}
+                    onChange={(e) => setLoginInput(e.target.value)}
+                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                  />
+                  {loginError && (
+                    <p className="text-red-500 mt-2 text-sm">{loginError}</p>
+                  )}
+                  <button
+                    onClick={handleLoginSubmit}
+                    className="w-full bg-blue-500 text-white py-2 rounded"
+                  >
+                    Login
+                  </button>
+                </>
+              )}
+              
+              {/* Link to switch forms */}
+              <div className="text-center mt-4">
+                <button
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-blue-500"
+                >
+                  {isSignUp ? 'Already have an account? Log in' : 'New here? Register'}
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
