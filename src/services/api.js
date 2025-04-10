@@ -56,3 +56,46 @@ export const getPagesByChapterId = async (chapterId) => {
   const res = await API.get(`/at-home/server/${chapterId}`);
   return res.data;
 };
+
+// User Signup (POST request to MangaDex API)
+export const registerUser = async (username, password) => {
+  const body = {
+    username: username,
+    password: password
+  };
+  const res = await API.post('/auth/register', body, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  return res.data; // Return the response data which contains the user data and JWT token
+};
+
+// Login function for MangaDex (POST request to MangaDex API)
+export const loginUser = async (username, password) => {
+  const body = {
+    username: username,
+    password: password
+  };
+
+  try {
+    const res = await API.post('/auth/login', body, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return res.data; // Return the response data which contains the user info and JWT token
+  } catch (error) {
+    throw new Error("Login failed. Please check your credentials.");
+  }
+};
+
+// Function to get current user info (requires authentication)
+export const getUserInfo = async (token) => {
+  const res = await API.get('/user/me', {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.data; // Return the user data
+};

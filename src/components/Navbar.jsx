@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaSearch, FaUserCircle, FaChevronDown } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import { loginUser } from '../services/api'; // Import loginUser from api.js
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CATEGORY_OPTIONS = [
@@ -13,7 +13,6 @@ const CATEGORY_OPTIONS = [
 ];
 
 export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
-  const { user, login, logout } = useAuth();
   const [query, setQuery] = useState(""); 
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false); // Avatar dropdown
@@ -23,21 +22,23 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
   const [results, setResults] = useState([]); 
   const catRef = useRef();
   const dropRef = useRef();
+  const searchContainerRef = useRef(); // Reference for the search container
   const navigate = useNavigate(); 
 
-  // Close search dropdowns on outside click
+  // Close search dropdowns and login form if clicked outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (
-        catRef.current &&
-        !catRef.current.contains(e.target) &&
-        !e.target.closest('.search-container') &&
-        !e.target.closest('.search-results')
-      ) {
+      // Close category dropdown if clicked outside
+      if (catRef.current && !catRef.current.contains(e.target) && categoryOpen) {
         setCategoryOpen(false);
       }
 
-      // Close login form if click is outside the form
+      // Close search dropdown if clicked outside
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setDropdownOpen(false); // Close search dropdown
+      }
+
+      // Close login form if clicked outside
       if (!e.target.closest('.login-form') && loginFormVisible) {
         setLoginFormVisible(false);
       }
@@ -45,24 +46,18 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [loginFormVisible]);
+  }, [categoryOpen, loginFormVisible]);
 
   // Handle search query change
   const handleSearch = (e) => {
     const value = e.target.value;
     setQuery(value);
-
     if (onSearch) {
       onSearch(value);
     }
   };
 
-  useEffect(() => {
-    if (searchResults) {
-      setResults(searchResults);
-    }
-  }, [searchResults]);
-
+  // Handle Enter key press for search
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       if (onSearch) {
@@ -75,20 +70,24 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
     }
   };
 
-  const handleLinkClick = () => {
-    setDropdownOpen(false); 
+  // Handle login form submission
+  const handleLoginSubmit = async () => {
+    try {
+      const response = await loginUser(loginInput, passwordInput); // Call the loginUser API function
+      console.log('Login successful:', response);
+      setLoginFormVisible(false); // Close login form after successful login
+      localStorage.setItem('userToken', response.token);
+      navigate('/'); // Navigate to home after successful login
+    } catch (error) {
+      console.error('Login failed:', error);
+      alert('Login failed. Please check your credentials.');
+    }
   };
 
   // Handle when user clicks a manga from the search results
   const handleMangaClick = (mangaId) => {
-    setDropdownOpen(false);
-    navigate(`/manga/${mangaId}`);
-  };
-
-  // Handle login form submission
-  const handleLoginSubmit = () => {
-    login(loginInput, passwordInput);
-    setLoginFormVisible(false); // Hide login form after submission
+    setDropdownOpen(false); // Close the dropdown before navigating
+    navigate(`/manga/${mangaId}`); // Navigate to MangaDetail page
   };
 
   return (
@@ -101,7 +100,7 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
         </Link>
 
         {/* Center: Search */}
-        <div className="relative flex-grow max-w-md hidden sm:block search-container">
+        <div ref={searchContainerRef} className="relative flex-grow max-w-md hidden sm:block search-container">
           <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -133,7 +132,7 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
                     <li
                       key={index}
                       className="flex items-center gap-3 px-4 py-2 hover:bg-gray-700 cursor-pointer"
-                      onClick={() => handleMangaClick(result.id)} // Navigate when clicked
+                      onClick={() => handleMangaClick(result.id)} // Close dropdown and navigate
                     >
                       <img
                         src={coverImageUrl} 
@@ -162,34 +161,34 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             >
               Categories <FaChevronDown className="text-xs" />
             </button>
+
+            {/* Categories Dropdown with Animation */}
             <AnimatePresence>
               {categoryOpen && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute"
+                  transition={{ duration: 0.3 }}
+                  className="absolute mt-2 bg-gray-800 text-white rounded shadow-lg w-72 z-50 border border-gray-700"
                   style={{
-                    right: `-110%`, // Centers the dropdown horizontally under the Categories button
-                    top: '150%',
-                    transform: 'translateX(-50%)' // Ensures it is centered
+                    right: '-120%',
+                    top: '120%',
+                    transform: 'translateX(-50%)',
                   }}
                 >
-                  <div className="bg-gray-800 text-white rounded shadow w-72 z-50 border border-gray-700">
-                    {CATEGORY_OPTIONS.map((label, index) => (
-                      <button
-                        key={index}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-700"
-                        onClick={() => {
-                          onGenreSelect(label);
-                          setCategoryOpen(false);
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                  {CATEGORY_OPTIONS.map((label, index) => (
+                    <button
+                      key={index}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-700"
+                      onClick={() => {
+                        onGenreSelect(label);
+                        setCategoryOpen(false); // Close dropdown after selecting a category
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -235,6 +234,7 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             transition={{ duration: 0.3 }}
           >
             <div className="login-form bg-gray-800 p-10 rounded-lg shadow-lg w-full sm:w-120 md:w-2/3 lg:w-2/4">
+              <h2 className='pb-10 text-3xl text-center font-bold'>Login</h2>
               <input
                 type="text"
                 placeholder="Username or Email"
