@@ -32,7 +32,7 @@ export const getMangaById = async (id) => {
   return res.data.data;
 };
 
-// **Fix**: Export the getChaptersByMangaId function
+// Fetching chapters based on manga ID
 export const getChaptersByMangaId = async (id, limit = 100, offset = 0) => {
   const res = await API.get(`/chapter`, {
     params: {
@@ -42,6 +42,12 @@ export const getChaptersByMangaId = async (id, limit = 100, offset = 0) => {
       includes: ["user"]  // Include relationships if necessary
     }
   });
+  return res.data.data;
+};
+
+// Fetch the details of a chapter based on its UUID
+export const getChapterDetailsByUUID = async (chapterId) => {
+  const res = await API.get(`/v2/chapters/${chapterId}`);
   return res.data.data;
 };
 

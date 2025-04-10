@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa"; // Added chevron icons for carousel buttons
-import { getMangaList } from "../services/api"; // Example API call
+import { getMangaList, getChapterDetailsByUUID } from "../services/api"; // Import the new API function
 
 export default function Home() {
   const [newChapters, setNewChapters] = useState([]);
@@ -13,16 +13,23 @@ export default function Home() {
   const [pageUpdates, setPageUpdates] = useState(1); // Separate page state for new chapters
 
   // Function to calculate how many hours ago a chapter was uploaded
-  const timeAgo = (publishedAt) => {
-    const timeDiff = Date.now() - new Date(publishedAt).getTime();
+  const timeAgo = (updatedAt) => {
+    const timeDiff = Date.now() - new Date(updatedAt).getTime();
     const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-    return `${hours} hours ago`;
+    
+    if (hours < 24) {
+      return `${hours} hours ago`;
+    } else {
+      const days = Math.floor(hours / 24);
+      return `${days} days ago`;
+    }
   };
 
   // Fetch data on load
   const fetchManga = useCallback((filter, pageNum) => {
     setLoading(true);
     getMangaList(filter, pageNum).then((data) => {
+      console.log(`API response for ${filter} manga (Page ${pageNum}):`, data); // Added console log
       if (filter === "hot") {
         setPopular((prev) => [...prev, ...data]); // Append data to popular
       } else if (filter === "new") {
@@ -65,6 +72,13 @@ export default function Home() {
     requestAnimationFrame(animateScroll);
   };
 
+  // Function to get the chapter details
+  const getChapterDetails = async (chapterId) => {
+    const chapterDetails = await getChapterDetailsByUUID(chapterId);
+    console.log(`Chapter details for UUID ${chapterId}:`, chapterDetails); // Log chapter details for debugging
+    return chapterDetails;
+  };
+
   return (
     <div className="pt-20 px-0 pb-8 text-white bg-gray-900 min-h-screen w-full">
       {/* Section: New Chapters */}
@@ -87,6 +101,11 @@ export default function Home() {
                     ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
                     : "https://placehold.co/256x360?text=No+Cover";
 
+                  // Get chapter details for the latest chapter (using the UUID)
+                  const latestChapterUUID = manga.attributes.latestUploadedChapter;
+                  console.log(`Fetching details for chapter UUID: ${latestChapterUUID}`); // Log UUID for debugging
+                  const chapterDetails = getChapterDetails(latestChapterUUID);
+
                   return (
                     <Link
                       key={`new-${manga.id}-${pageUpdates}-${Math.random()}`} // Ensuring a unique key
@@ -101,7 +120,9 @@ export default function Home() {
                       <div className="p-2 text-sm">
                         <h3 className="font-semibold line-clamp-2">{manga.attributes.title.en}</h3>
                         <p className="text-gray-400 text-xs mt-1">
-                          {manga.attributes.chapter ? `Chap ${manga.attributes.chapter} · ${timeAgo(manga.attributes.publishedAt)}` : "No chapters available"}
+                          {chapterDetails 
+                            ? `Chap ${manga.attributes.lastChapter} · ${timeAgo(manga.attributes.updatedAt)}` 
+                            : "No chapters available"}
                         </p>
                       </div>
                     </Link>
@@ -152,8 +173,8 @@ export default function Home() {
                   <div className="p-2 text-sm">
                     <h3 className="font-semibold line-clamp-2">{manga.attributes.title.en}</h3>
                     <p className="text-gray-400 text-xs mt-1">
-                      {manga.attributes.chapter 
-                        ? `Chap ${manga.attributes.chapter} · ${timeAgo(manga.attributes.publishedAt)}` 
+                      {manga.attributes.lastChapter 
+                        ? `Chap ${manga.attributes.lastChapter} · ${timeAgo(manga.attributes.updatedAt)}` 
                         : "No chapters available"}
                     </p>
                   </div>
@@ -204,8 +225,8 @@ export default function Home() {
                   <div className="p-2 text-sm">
                     <h3 className="font-semibold line-clamp-2">{manga.attributes.title.en}</h3>
                     <p className="text-gray-400 text-xs mt-1">
-                      {manga.attributes.chapter 
-                        ? `Chap ${manga.attributes.chapter} · ${timeAgo(manga.attributes.publishedAt)}` 
+                      {manga.attributes.lastChapter 
+                        ? `Chap ${manga.attributes.lastChapter} · ${timeAgo(manga.attributes.updatedAt)}` 
                         : "No chapters available"}
                     </p>
                   </div>
