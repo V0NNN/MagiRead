@@ -18,8 +18,9 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false); // Avatar dropdown
   const [loginInput, setLoginInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState(""); // Password input for login
+  const [loginFormVisible, setLoginFormVisible] = useState(false); // Track visibility of the login form
   const [results, setResults] = useState([]); 
-  const [avatarDropdownOpen, setAvatarDropdownOpen] = useState(false); // Avatar dropdown state
   const catRef = useRef();
   const dropRef = useRef();
   const navigate = useNavigate(); 
@@ -33,27 +34,18 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
         !e.target.closest('.search-container') &&
         !e.target.closest('.search-results')
       ) {
-        setDropdownOpen(false); 
+        setCategoryOpen(false);
       }
 
-      // Close avatar dropdown if click is outside the dropdown
-      if (
-        dropRef.current &&
-        !dropRef.current.contains(e.target) &&
-        !e.target.closest('.avatar-dropdown')
-      ) {
-        setAvatarDropdownOpen(false); 
+      // Close login form if click is outside the form
+      if (!e.target.closest('.login-form') && loginFormVisible) {
+        setLoginFormVisible(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Close search dropdown when navigating to MangaDetail page
-  useEffect(() => {
-    setDropdownOpen(false); 
-  }, [navigate]);
+  }, [loginFormVisible]);
 
   // Handle search query change
   const handleSearch = (e) => {
@@ -71,7 +63,6 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
     }
   }, [searchResults]);
 
-  // Handle Enter key press for search and navigate to the first result
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       if (onSearch) {
@@ -94,9 +85,15 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
     navigate(`/manga/${mangaId}`);
   };
 
+  // Handle login form submission
+  const handleLoginSubmit = () => {
+    login(loginInput, passwordInput);
+    setLoginFormVisible(false); // Hide login form after submission
+  };
+
   return (
     <nav className="bg-gray-900 text-white px-6 py-3 w-full fixed top-0 left-0 right-0 z-50 shadow border-b border-gray-700">
-      <div className="flex items-center justify-between gap-4 flex-wrap md:flex-nowrap">
+      <div className="flex items-center justify-between gap-8 flex-wrap md:flex-nowrap">
         {/* Left: Brand */}
         <Link to="/" className="flex items-center gap-2 hover:text-gray-300">
           <img src="/favicon.ico" alt="logo" className="w-6 h-6" />
@@ -156,7 +153,7 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
         </div>
 
         {/* Right: Links & Dropdowns */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-8">
           {/* Categories */}
           <div ref={catRef} className="relative">
             <button
@@ -172,20 +169,27 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute top-8 right-0 bg-gray-800 text-white rounded shadow w-64 z-50 border border-gray-700"
+                  className="absolute"
+                  style={{
+                    right: `-110%`, // Centers the dropdown horizontally under the Categories button
+                    top: '150%',
+                    transform: 'translateX(-50%)' // Ensures it is centered
+                  }}
                 >
-                  {CATEGORY_OPTIONS.map((label, index) => (
-                    <button
-                      key={index}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-700"
-                      onClick={() => {
-                        onGenreSelect(label);
-                        setCategoryOpen(false);
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                  <div className="bg-gray-800 text-white rounded shadow w-72 z-50 border border-gray-700">
+                    {CATEGORY_OPTIONS.map((label, index) => (
+                      <button
+                        key={index}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-700"
+                        onClick={() => {
+                          onGenreSelect(label);
+                          setCategoryOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -199,55 +203,62 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             Filter
           </button>
 
-          {/* My List Button */}
-          <button
-            className="text-white hover:text-gray-300"
-            onClick={() => alert('My List clicked!')}
-          >
-            My List
-          </button>
-
-          {/* Avatar Dropdown */}
-          <div ref={dropRef} className="relative avatar-dropdown">
+          {/* My List Button - Redirects to MyList.jsx */}
+          <Link to="/mylist">
             <button
-              onClick={() => setAvatarDropdownOpen((prev) => !prev)}
+              className="text-white hover:text-gray-300"
+            >
+              My List
+            </button>
+          </Link>
+
+          {/* Avatar - Click to show login form */}
+          <div ref={dropRef} className="relative">
+            <button
+              onClick={() => setLoginFormVisible(true)} // Show login form when avatar is clicked
               className="text-2xl"
             >
               <FaUserCircle />
             </button>
-            {avatarDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded shadow-lg p-2 space-y-1 z-50">
-                {!user ? (
-                  <>
-                    <input
-                      className="w-full p-2 text-sm border border-gray-300 rounded"
-                      placeholder="Username"
-                      value={loginInput}
-                      onChange={(e) => setLoginInput(e.target.value)}
-                    />
-                    <button
-                      className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-                      onClick={() => login(loginInput)}
-                    >
-                      Login
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="px-2 py-1 text-sm text-gray-800">Hi, {user.username}</div>
-                    <button
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                      onClick={logout}
-                    >
-                      Logout
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Login Form */}
+      <AnimatePresence>
+        {loginFormVisible && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="login-form bg-gray-800 p-10 rounded-lg shadow-lg w-full sm:w-120 md:w-2/3 lg:w-2/4">
+              <input
+                type="text"
+                placeholder="Username or Email"
+                value={loginInput}
+                onChange={(e) => setLoginInput(e.target.value)}
+                className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleLoginSubmit}
+                className="w-full bg-blue-500 text-white p-4 rounded hover:bg-blue-600 text-md"
+              >
+                Login
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

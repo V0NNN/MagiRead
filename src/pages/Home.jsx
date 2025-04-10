@@ -29,7 +29,6 @@ export default function Home() {
   const fetchManga = useCallback((filter, pageNum) => {
     setLoading(true);
     getMangaList(filter, pageNum).then((data) => {
-      console.log(`API response for ${filter} manga (Page ${pageNum}):`, data); // Added console log
       if (filter === "hot") {
         setPopular((prev) => [...prev, ...data]); // Append data to popular
       } else if (filter === "new") {
@@ -75,12 +74,11 @@ export default function Home() {
   // Function to get the chapter details
   const getChapterDetails = async (chapterId) => {
     const chapterDetails = await getChapterDetailsByUUID(chapterId);
-    console.log(`Chapter details for UUID ${chapterId}:`, chapterDetails); // Log chapter details for debugging
     return chapterDetails;
   };
 
   return (
-    <div className="pt-20 px-0 pb-8 text-white bg-gray-900 min-h-screen w-full">
+    <div className="pt-10 px-0 pb-8 text-white bg-gray-900 min-h-screen w-full">
       {/* Section: New Chapters */}
       <section className="mt-12 px-20 py-6">
         <h2 className="text-2xl font-bold mb-4">New Chapters from Followed Comics</h2>
@@ -103,7 +101,6 @@ export default function Home() {
 
                   // Get chapter details for the latest chapter (using the UUID)
                   const latestChapterUUID = manga.attributes.latestUploadedChapter;
-                  console.log(`Fetching details for chapter UUID: ${latestChapterUUID}`); // Log UUID for debugging
                   const chapterDetails = getChapterDetails(latestChapterUUID);
 
                   return (
