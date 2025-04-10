@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { FaFire, FaSun } from "react-icons/fa"; // Import icons
+import { FaSun } from "react-icons/fa"; // Remove Hot toggle
 import { getMangaList } from "../services/api"; // Example API call
 
 export default function Home() {
@@ -8,16 +8,24 @@ export default function Home() {
   const [popular, setPopular] = useState([]);
   const [updates, setUpdates] = useState([]);
   const [user, setUser] = useState(null); // Placeholder for user authentication (replace with actual auth)
-  const [selectedFilter, setSelectedFilter] = useState("hot"); // State to track selected filter
   const [loading, setLoading] = useState(false); // State to track if more data is loading
   const [page, setPage] = useState(1); // State for the current page of API data
   const [pagePopular, setPagePopular] = useState(1); // Separate page state for hot
   const [pageUpdates, setPageUpdates] = useState(1); // Separate page state for new chapters
 
+  // Function to calculate how many hours ago a chapter was uploaded
+  const timeAgo = (publishedAt) => {
+    const timeDiff = Date.now() - new Date(publishedAt).getTime();
+    const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+    return `${hours} hours ago`;
+  };
+
   // Fetch data on load
   const fetchManga = useCallback((filter, pageNum) => {
     setLoading(true);
     getMangaList(filter, pageNum).then((data) => {
+      console.log('API Response for updates (new chapters):', data); // Log the API response
+
       if (filter === "hot") {
         setPopular((prev) => [...prev, ...data]); // Append data to popular
       } else if (filter === "new") {
@@ -29,39 +37,14 @@ export default function Home() {
 
   // Ensure updates are loaded when the page first loads
   useEffect(() => {
-    // On page load, fetch the data based on the default filter (hot)
-    if (selectedFilter === "hot") {
-      fetchManga("hot", pagePopular); // Load popular manga for "hot"
-    } else if (selectedFilter === "new") {
-      fetchManga("new", pageUpdates); // Load new chapters for "new"
-    }
-  }, [selectedFilter, pagePopular, pageUpdates, fetchManga]); // Depend on selected filter and page state
+    fetchManga("new", pageUpdates); // Load new chapters for "new" on page load
+  }, [pageUpdates, fetchManga]); // Depend on pageUpdates state to fetch new data
 
+  useEffect(() => {
+    fetchManga("hot", pagePopular); // Load popular manga for "hot"
+  }, [pagePopular, fetchManga]); // Depend on pagePopular state to fetch popular data
 
-  
-
-  // Handle button clicks for "Hot" or "New"
-  const handleFilterChange = (filter) => {
-    setSelectedFilter(filter); // Set the new filter
-    setPage(1); // Reset the global page state to 1 when switching filters
-  
-    if (filter === "hot") {
-      setPageUpdates(1); // Reset pageUpdates when switching to "hot"
-      setUpdates([]); // Clear the updates section
-    } else {
-      setPagePopular(1); // Reset pagePopular when switching to "new"
-      setPopular([]); // Clear the popular section
-    }
-  };
-  
-
-  const handleScrollPopular = (event) => {
-    const bottom = event.target.scrollHeight === event.target.scrollTop + event.target.clientHeight;
-    if (bottom && !loading) {
-      setPagePopular((prev) => prev + 1); // Increment page for popular
-    }
-  };
-  
+  // Scroll handler to load more manga when reaching the bottom
   const handleScrollUpdates = (event) => {
     const bottom = event.target.scrollHeight === event.target.scrollTop + event.target.clientHeight;
     if (bottom && !loading) {
@@ -69,27 +52,16 @@ export default function Home() {
     }
   };
 
-  // Scroll handler to load more manga when reaching the bottom
-  const handleScroll = (event) => {
+  // Scroll handler for popular manga
+  const handleScrollPopular = (event) => {
     const bottom = event.target.scrollHeight === event.target.scrollTop + event.target.clientHeight;
     if (bottom && !loading) {
-      setPage((prev) => prev + 1); // Increment page number to fetch more manga
+      setPagePopular((prev) => prev + 1); // Increment page for popular
     }
   };
 
-  // Handle button visibility based on scroll position
-  const handleScrollLeft = (carouselId) => {
-    const carousel = document.getElementById(carouselId);
-    carousel.scrollLeft -= 400;
-  };
-
-  const handleScrollRight = (carouselId) => {
-    const carousel = document.getElementById(carouselId);
-    carousel.scrollLeft += 400;
-  };
-
   return (
-    <div className="pt-20 px-0 pb-8 text-white bg-gray-900 min-h-screen w-full" onScroll={handleScroll}>
+    <div className="pt-20 px-0 pb-8 text-white bg-gray-900 min-h-screen w-full">
       {/* Section: New Chapters */}
       <section className="mt-12 px-20 py-6">
         <h2 className="text-2xl font-bold mb-4">New Chapters from Followed Comics</h2>
@@ -99,17 +71,11 @@ export default function Home() {
           </div>
         ) : (
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => handleScrollLeft("carousel")}
-              className="text-white bg-gray-700 rounded-full p-2 hover:bg-gray-600"
-            >
-              &lt;
-            </button>
             <div id="carousel" className="flex overflow-x-hidden space-x-4 pb-2">
-              {newChapters.length === 0 ? (
+              {updates.length === 0 ? (
                 <p className="text-center text-gray-500 w-full">Sorry, no new chapters available.</p>
               ) : (
-                newChapters.slice(0, 10).map((manga) => {
+                updates.slice(0, 10).map((manga) => {
                   const coverArt = manga.relationships.find((r) => r.type === "cover_art");
                   const filename = coverArt?.attributes?.fileName;
                   const imageUrl = filename
@@ -118,7 +84,7 @@ export default function Home() {
 
                   return (
                     <Link
-                      key={`new-${manga.id}-${selectedFilter}-${page}-${Math.random()}`}
+                      key={`new-${manga.id}-${pageUpdates}-${Math.random()}`} // Ensuring a unique key
                       to={`/manga/${manga.id}`}
                       className="flex-shrink-0 w-[160px] bg-gray-800 rounded-md shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-200"
                     >
@@ -129,19 +95,16 @@ export default function Home() {
                       />
                       <div className="p-2 text-sm">
                         <h3 className="font-semibold line-clamp-2">{manga.attributes.title.en}</h3>
-                        <p className="text-gray-400 text-xs mt-1">Chap ?? · x hours ago</p>
+                        {/* Display the latest chapter and time ago */}
+                        <p className="text-gray-400 text-xs mt-1">
+                          {manga.attributes.chapter ? `Chap ${manga.attributes.chapter} · ${timeAgo(manga.attributes.publishedAt)}` : "No chapters available"}
+                        </p>
                       </div>
                     </Link>
                   );
                 })
               )}
             </div>
-            <button
-              onClick={() => handleScrollRight("carousel")}
-              className="text-white bg-gray-700 rounded-full p-2 hover:bg-gray-600"
-            >
-              &gt;
-            </button>
           </div>
         )}
       </section>
@@ -166,7 +129,7 @@ export default function Home() {
                 : "https://placehold.co/256x360?text=No+Cover";
               return (
                 <Link
-                  key={`popular-${manga.id}-hot`}
+                  key={`popular-${manga.id}-hot-${Math.random()}`} // Ensuring a unique key
                   to={`/manga/${manga.id}`}
                   className="flex-shrink-0 w-[160px] bg-gray-800 rounded-md shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-200"
                 >
@@ -197,23 +160,12 @@ export default function Home() {
       <section className="mt-12 px-20 py-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Updates</h2>
-          <div className="flex items-center space-x-4">
-            <button
-              className={`${
-                selectedFilter === "hot" ? "bg-red-500 text-white" : "bg-gray-700 text-gray-300"
-              } rounded py-1 px-4 hover:bg-red-400 flex items-center`}
-              onClick={() => handleFilterChange("hot")}
-            >
-              <FaFire className="mr-2" /> Hot
-            </button>
-            <button
-              className={`${
-                selectedFilter === "new" ? "bg-blue-500 text-white" : "bg-gray-700 text-gray-300"
-              } rounded py-1 px-4 hover:bg-blue-400 flex items-center`}
-              onClick={() => handleFilterChange("new")}
-            >
-              <FaSun className="mr-2" /> New
-            </button>
+          <div
+            className={`${
+              "bg-blue-500 text-white"
+            } rounded py-1 px-4 flex items-center`}
+          >
+            <FaSun className="mr-2" /> New
           </div>
         </div>
         <div className="grid grid-cols-6 gap-4">
@@ -226,10 +178,11 @@ export default function Home() {
               const imageUrl = filename
                 ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
                 : "https://placehold.co/256x360?text=No+Cover";
-
+            
+              // Ensure unique key by adding a random number and pageUpdates
               return (
                 <Link
-                  key={`update-${manga.id}-${selectedFilter}-${pageUpdates}`} // Ensure unique key for updates
+                  key={`update-${manga.id}-${pageUpdates}-${Math.random()}`} // Use pageUpdates and Math.random() to ensure uniqueness
                   to={`/manga/${manga.id}`}
                   className="bg-gray-800 rounded-md shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-200"
                 >
@@ -240,7 +193,9 @@ export default function Home() {
                   />
                   <div className="p-2 text-sm">
                     <h3 className="font-semibold line-clamp-2">{manga.attributes.title.en}</h3>
-                    <p className="text-gray-400 text-xs mt-1">Chap {manga.attributes.chapter} · x hours ago</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Chap {manga.attributes.chapter} · {timeAgo(manga.attributes.publishedAt)}
+                    </p>
                   </div>
                 </Link>
               );
