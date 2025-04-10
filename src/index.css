@@ -10,3 +10,71 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;      /* Firefox */
 }
+
+/* Remove background hover from container */
+.navbar-logout-button-container {
+    position: absolute;
+    top: 55px;
+    right: 10px;
+    z-index: 1000;
+    width: 100px;
+    padding: 0; /* Remove padding here */
+    background-color: transparent;
+    border: none; /* Remove border if not needed */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Remove this hover effect */
+.navbar-logout-button-container:hover {
+    background-color: transparent;
+}
+
+/* Button styles */
+.navbar-logout-button {
+    width: 100%;
+    padding: 10px 13px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #f87171;
+    cursor: pointer;
+    background-color: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.navbar-logout-button:hover {
+    background-color: #333333;
+}
+
+/* .navbar-logout-button-container {
+    position: absolute;
+    top: 55px;
+    right: 5px;
+    z-index: 1000;
+    width: auto;
+  }
+  
+  .navbar-logout-button {
+    width: 100%;
+    background-color: #1f2937; 
+    color: #ffffff;           
+    padding: 10px 16px;
+    border: 1px solid #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  
+  .navbar-logout-button:hover {
+    background-color: #333333;
+    color: #f87171;
+    border-radius: 3px;
+    border: 1px solid #f87171;
+  } */

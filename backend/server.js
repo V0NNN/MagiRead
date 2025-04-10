@@ -1,45 +1,27 @@
+const express = require('express');
 const mongoose = require('mongoose');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const cors = require('cors');
+const authRoutes = require('./routes/authRoutes'); // Import authentication routes
 
 // MongoDB Atlas Connection String
 const uri = "mongodb+srv://VON:2485GXcGRA80EmHK@magiread.cfggchf.mongodb.net/?retryWrites=true&w=majority&appName=MagiRead";
 
-// Replace <db_password> with your actual password
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-async function connectMongoDB() {
-  try {
-    // Connect MongoDB client
-    await client.connect();
-    console.log("MongoDB Atlas connected successfully!");
-
-    // Connect Mongoose (no deprecated options)
-    await mongoose.connect(uri);
-    console.log("MongoDB Mongoose connected successfully!");
-    
-    // Optional: Ping MongoDB to ensure connection works
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-
-  } catch (error) {
-    console.error("Error connecting to MongoDB:", error);
-  }
-}
-
-// Call the MongoDB connection function
-connectMongoDB();
-
-// Start Express server or any other logic
-const express = require('express');
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
+// Middleware
+app.use(cors()); // Enable CORS for cross-origin requests
+app.use(express.json()); // For parsing application/json
+
+// Connect to MongoDB
+mongoose.connect(uri) // Removed deprecated options
+  .then(() => console.log("MongoDB connected successfully"))
+  .catch((err) => console.log("MongoDB connection error: ", err));
+
+// Authentication routes
+app.use('/api/auth', authRoutes); // Mount auth routes to '/api/auth'
+
+// Start Express server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

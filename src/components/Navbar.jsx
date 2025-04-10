@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaSearch, FaUserCircle, FaChevronDown } from 'react-icons/fa';
-import { loginUser } from '../services/api'; // Import loginUser from api.js
+import { FaSearch, FaUserCircle, FaChevronDown, FaSignOutAlt } from 'react-icons/fa'; // Added logout icon
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CATEGORY_OPTIONS = [
@@ -13,22 +12,107 @@ const CATEGORY_OPTIONS = [
 ];
 
 export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
-  const [query, setQuery] = useState(""); 
+  const [query, setQuery] = useState("");
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false); // Avatar dropdown
   const [loginInput, setLoginInput] = useState("");
   const [passwordInput, setPasswordInput] = useState(""); // Password input for login
   const [loginFormVisible, setLoginFormVisible] = useState(false); // Track visibility of the login form
   const [isSignUp, setIsSignUp] = useState(false); // Switch between Sign-Up and Sign-In
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [username, setUsername] = useState(""); // Added for sign-up
+  const [email, setEmail] = useState(""); // Added for sign-up
+  const [confirmPassword, setConfirmPassword] = useState(""); // Added for sign-up
   const [loginError, setLoginError] = useState(""); // Error state for login
   const [signUpError, setSignUpError] = useState(""); // Error state for sign-up
+  const [user, setUser] = useState(null); // Track logged-in user
   const catRef = useRef();
   const dropRef = useRef();
   const searchContainerRef = useRef(); // Reference for the search container
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false); // NEW
+
+  // Check if user is logged in on initial load
+  useEffect(() => {
+    const token = localStorage.getItem("userToken");
+    if (token) {
+      setUser({ token }); // Set user if token exists
+    }
+  }, []);
+
+  // Handle logout
+  const handleLogout = () => {
+    console.log("Logging out... Removing token from localStorage");
+    // Remove the token from localStorage
+    localStorage.removeItem("userToken");
+
+    // Optionally reset the user state
+    setUser(null); // Reset user state
+
+    // Close the dropdown and show the login form again
+    setDropdownOpen(false);
+  };
+
+  // Handle login form submission
+  const handleLoginSubmit = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/signin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usernameOrEmail: loginInput,
+          password: passwordInput,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setLoginFormVisible(false); // Close login form after successful login
+        localStorage.setItem('userToken', data.token); // Save token to local storage
+        setUser({ token: data.token }); // Update user state
+        setLoginInput(""); // Clear login input field
+        setPasswordInput(""); // Clear password input field
+        navigate('/'); // Navigate to home after successful login
+      } else {
+        setLoginError(data.message); // Show error if login fails
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setLoginError("Login failed. Please check your credentials.");
+    }
+  };
+
+  // Handle sign-up form submission
+  const handleSignUpSubmit = async () => {
+    if (passwordInput !== confirmPassword) {
+      setSignUpError("Passwords do not match.");
+      return;
+    }
+
+    const response = await fetch("http://localhost:5000/api/auth/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        email,
+        password: passwordInput,
+        confirmPassword,
+      }),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      setLoginFormVisible(false); // Close the form after successful sign-up
+      setLoginInput(""); // Clear login input field
+      setPasswordInput(""); // Clear password input field
+      alert("User created successfully!");
+    } else {
+      setSignUpError(data.message); // Display sign-up error
+    }
+  };
 
   // Close search dropdowns and login form if clicked outside
   useEffect(() => {
@@ -38,9 +122,17 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
         setCategoryOpen(false);
       }
 
-      // Close search dropdown if clicked outside
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
-        setDropdownOpen(false); // Close search dropdown
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target)
+      ) {
+        setSearchDropdownOpen(false);
+      }
+      if (
+        dropRef.current &&
+        !dropRef.current.contains(e.target)
+      ) {
+        setDropdownOpen(false);
       }
 
       // Close login form if clicked outside
@@ -58,7 +150,7 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
     const value = e.target.value;
     setQuery(value);
     if (onSearch) {
-      onSearch(value);
+      onSearch(value); // If onSearch function is passed as a prop, call it
     }
   };
 
@@ -68,61 +160,11 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
       if (onSearch) {
         onSearch(query);
       }
-      setDropdownOpen(false); 
-      if (results.length > 0) {
-        navigate(`/manga/${results[0]?.id}`);
+      setSearchDropdownOpen(false);
+      if (searchResults.length > 0) {
+        navigate(`/manga/${searchResults[0]?.id}`);
       }
     }
-  };
-
-  // Handle login form submission
-  const handleLoginSubmit = async () => {
-    try {
-      const response = await loginUser(loginInput, passwordInput); // Call the loginUser API function
-      console.log('Login successful:', response);
-      setLoginFormVisible(false); // Close login form after successful login
-      localStorage.setItem('userToken', response.token);
-      navigate('/'); // Navigate to home after successful login
-    } catch (error) {
-      console.error('Login failed:', error);
-      setLoginError("Login failed. Please check your credentials."); // Set error message
-    }
-  };
-
-  // Handle sign-up form submission
-  const handleSignUpSubmit = async () => {
-    if (passwordInput !== confirmPassword) {
-      setSignUpError("Passwords do not match.");
-      return;
-    }
-
-    // Check if username or email already exists
-    const response = await fetch("http://localhost:5000/api/auth/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        email,
-        password: passwordInput,
-        confirmPassword,
-      }),
-    });
-
-    if (response.ok) {
-      setLoginFormVisible(false);
-      alert('User created successfully!');
-    } else {
-      const data = await response.json();
-      setSignUpError(data.message);
-    }
-  };
-
-  // Handle when user clicks a manga from the search results
-  const handleMangaClick = (mangaId) => {
-    setDropdownOpen(false); // Close the dropdown before navigating
-    navigate(`/manga/${mangaId}`); // Navigate to MangaDetail page
   };
 
   return (
@@ -143,15 +185,12 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             className="w-full pl-10 pr-20 py-2 rounded bg-gray-800 text-sm text-white placeholder:text-gray-400 outline-none border border-transparent focus:border-blue-500"
             value={query}
             onChange={handleSearch}
-            onFocus={() => setDropdownOpen(true)} // Open dropdown when focus on input
+            onFocus={() => setSearchDropdownOpen(true)}
             onKeyDown={handleKeyDown}
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 hidden md:block">
-            Ctrl K
-          </span>
 
           {/* Search Results Dropdown */}
-          {query && searchResults.length > 0 && dropdownOpen && (
+          {query && searchResults.length > 0 && searchDropdownOpen && (
             <div
               className="absolute top-full left-0 w-[200%] mt-2 bg-gray-800 text-white rounded shadow-lg z-50 max-h-80 overflow-y-auto search-results"
               style={{ left: '50%', transform: 'translateX(-50%)' }}
@@ -206,11 +245,6 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
                   className="absolute mt-2 bg-gray-800 text-white rounded shadow-lg w-72 z-50 border border-gray-700"
-                  style={{
-                    right: '-120%',
-                    top: '120%',
-                    transform: 'translateX(-50%)',
-                  }}
                 >
                   {CATEGORY_OPTIONS.map((label, index) => (
                     <button
@@ -245,16 +279,46 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
           </Link>
 
           {/* Avatar - Click to show login form */}
-          <div ref={dropRef} className="relative">
-            <button
-              onClick={() => setLoginFormVisible(true)} // Show login form when avatar is clicked
-              className="text-2xl"
-            >
-              <FaUserCircle />
-            </button>
+          <div ref={dropRef}>
+            {user ? (
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)} // Toggle dropdown
+                className="text-3xl"
+              >
+                <FaUserCircle />
+              </button>
+            ) : (
+              <button
+                onClick={() => setLoginFormVisible(true)} // Show login form when avatar is clicked
+                className="text-3xl"
+              >
+                <FaUserCircle />
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={dropdownOpen ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className={`navbar-logout-button-container rounded absolute right-6 top-16 bg-gray-800 shadow-lg border border-gray-700 z-50 ${
+              dropdownOpen ? "block" : "hidden"
+            }`}
+          >
+            <button
+              onClick={handleLogout}
+              className="navbar-logout-button bg-gray-800 text-red-500 w-full py-2 px-4 text-left hover:bg-gray-700"
+            >
+              <FaSignOutAlt /> Logout
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Login Form */}
       <AnimatePresence>
@@ -267,8 +331,9 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             transition={{ duration: 0.3 }}
           >
             <div className="login-form bg-gray-800 p-10 rounded-lg shadow-lg w-full sm:w-120 md:w-2/3 lg:w-2/4">
-              <h2 className='pb-10 text-3xl text-center font-bold'>{isSignUp ? 'Sign Up' : 'Login'}</h2>
-              {/* Switch between Sign-In and Sign-Up */}
+              <h2 className="pb-10 text-3xl text-center font-bold">
+                {isSignUp ? 'Sign Up' : 'Login'}
+              </h2>
               {isSignUp ? (
                 <>
                   <input
@@ -336,8 +401,7 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
                   </button>
                 </>
               )}
-              
-              {/* Link to switch forms */}
+
               <div className="text-center mt-4">
                 <button
                   onClick={() => setIsSignUp(!isSignUp)}
