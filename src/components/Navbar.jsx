@@ -191,6 +191,22 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
             </AnimatePresence>
           </div>
 
+          {/* Filter Button */}
+          <button
+            className="text-white hover:text-gray-300"
+            onClick={() => alert('Filter clicked!')}
+          >
+            Filter
+          </button>
+
+          {/* My List Button */}
+          <button
+            className="text-white hover:text-gray-300"
+            onClick={() => alert('My List clicked!')}
+          >
+            My List
+          </button>
+
           {/* Avatar Dropdown */}
           <div ref={dropRef} className="relative avatar-dropdown">
             <button

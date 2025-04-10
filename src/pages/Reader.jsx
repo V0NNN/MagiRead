@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { getPagesByChapterId, getChaptersByMangaId } from '../services/api';
+import { HashLoader } from 'react-spinners'; // Import HashLoader from react-spinners
 
 export default function Reader() {
   const { mangaId, chapterId } = useParams(); // Use mangaId and chapterId from route params
@@ -101,7 +102,7 @@ export default function Reader() {
       <div className="flex justify-center items-center flex-col gap-4 flex-grow" style={{ width: '50%', margin: '0 auto' }}>
         {isLoading ? (
           <div className="flex justify-center items-center text-white">
-            <div className="w-12 h-12 rounded-full border-t-4 border-white animate-spin"></div> {/* Spinning circle */}
+            <HashLoader color="#ffffff" size={60} /> {/* Use HashLoader with customized size */}
             <span className="ml-4 text-xl">Loading...</span>
           </div>
         ) : (
