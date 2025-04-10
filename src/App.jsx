@@ -29,7 +29,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/manga/:id" element={<MangaDetail />} />
-          <Route path="/reader/:mangaId/:chapterId" element={<Reader />} />
+          <Route path="/reader/:mangaId/:chapterId" element={<Reader />} /> {/* Updated route */}
           <Route path="/my-list" element={<MyList />} />
         </Routes>
       </div>

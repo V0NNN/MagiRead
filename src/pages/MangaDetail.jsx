@@ -40,7 +40,6 @@ export default function MangaDetail() {
 
     try {
       const data = await getChaptersByMangaId(id, limit, offset);
-      console.log('Fetched Chapters:', data); // Log the fetched chapters for debugging
 
       // If no new chapters were returned, set hasMoreChapters to false
       if (data.length === 0) {
