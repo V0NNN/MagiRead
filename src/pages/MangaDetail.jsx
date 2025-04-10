@@ -2,55 +2,103 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { getMangaById, getChaptersByMangaId } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid'; // Importing UUID library
 
 export default function MangaDetail() {
-  const { id } = useParams(); // Directly using useParams() to get id
+  const { id } = useParams();
   const [manga, setManga] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('chapter');
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [hasMoreChapters, setHasMoreChapters] = useState(true); // Track if there are more chapters to load
+  const [isLoading, setIsLoading] = useState(false); // Track loading state
 
-  const navigate = useNavigate(); // For navigation to Reader page
+  const mangaPerPage = 80;
+  const navigate = useNavigate();
 
+  // Fetch Manga Details
   useEffect(() => {
     if (id) {
-      // Fetch manga details using id from useParams
       getMangaById(id).then(data => {
         setManga(data);
       });
 
-      // Fetch chapters for the manga
-      getChaptersByMangaId(id).then(data => {
-        setChapters(data);
-      });
+      fetchChapters(1); // Initial fetch for chapters
     } else {
-      // Handle the case where the id is not available
       console.error('Manga id not found!');
     }
-  }, [id]); // The effect will run again when the id changes
+  }, [id]);
 
-  // Function to handle sorting
-  const sortChapters = (chapters, sortBy, sortOrder) => {
-    return chapters.sort((a, b) => {
-      let comparison = 0;
-      if (sortBy === 'chapter') {
-        comparison = a.attributes.chapter - b.attributes.chapter;
-      } else if (sortBy === 'uploaded') {
-        comparison = new Date(a.attributes.createdAt) - new Date(b.attributes.createdAt);
+  // Fetch Chapters
+  const fetchChapters = async (page = 1) => {
+    const limit = 100; // Maximum number of chapters per API request
+    const offset = (page - 1) * limit;
+
+    setIsLoading(true); // Set loading to true while fetching chapters
+
+    try {
+      const data = await getChaptersByMangaId(id, limit, offset);
+      console.log('Fetched Chapters:', data); // Log the fetched chapters for debugging
+
+      // If no new chapters were returned, set hasMoreChapters to false
+      if (data.length === 0) {
+        setHasMoreChapters(false);
+      } else {
+        // Append new chapters to the existing list
+        setChapters(prevChapters => [...prevChapters, ...data]);
       }
+    } catch (error) {
+      console.error('Error fetching chapters:', error);
+    } finally {
+      setIsLoading(false); // Set loading to false once the fetch is complete
+    }
+  };
 
-      return sortOrder === 'asc' ? comparison : -comparison;
+  // Sort chapters by chapter number or created date
+  const sortChapters = (chapters) => {
+    return chapters.sort((a, b) => {
+      const chapterA = parseInt(a.attributes.chapter, 10);
+      const chapterB = parseInt(b.attributes.chapter, 10);
+      return chapterA - chapterB; // Sort chapters numerically
     });
   };
 
-  const filteredChapters = chapters.filter((ch) =>
-    ch.attributes?.chapter.toString().includes(searchQuery)
+  // Filter unique chapters and sort them
+  const uniqueChapters = chapters.filter((value, index, self) => 
+    index === self.findIndex((t) => (
+      t.attributes.chapter === value.attributes.chapter
+    ))
+  );
+  
+  const sortedChapters = sortChapters(uniqueChapters);
+
+  // Pagination: Show current page chapters
+  const filteredChapters = sortedChapters.filter((ch) =>
+    ch.attributes?.chapter != null && ch.attributes?.chapter.toString().includes(searchQuery)
   );
 
-  const sortedChapters = sortChapters(filteredChapters, sortBy, sortOrder);
+  const currentChapters = filteredChapters.slice((page - 1) * mangaPerPage, page * mangaPerPage);
+  
+  // Handle next and previous page actions
+  const handleNextPage = () => {
+    if (hasMoreChapters) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchChapters(nextPage);
+    }
+  };
 
-  // Format the upload date from the `createdAt` field
+  const handlePreviousPage = () => {
+    const prevPage = page > 1 ? page - 1 : 1;
+    setPage(prevPage);
+  };
+
+  const hasNextPage = hasMoreChapters && filteredChapters.length > page * mangaPerPage;
+  const hasPreviousPage = page > 1;
+
+  // Format date
   const formatDate = (date) => {
     const d = new Date(date);
     const day = String(d.getDate()).padStart(2, '0');
@@ -59,23 +107,19 @@ export default function MangaDetail() {
     return `${day}/${month}/${year}`;
   };
 
-  // Get the uploader information (either username or something related from the chapter data)
+  // Get uploader info
   const getUploader = (chapter) => {
     return chapter.relationships?.find((r) => r.type === 'user')?.attributes?.username || 'Unknown';
   };
 
-  // Safe access to Manga Info
-  const getMangaAttribute = (path) => {
-    return path?.join(', ') || 'N/A';
-  };
-
-  if (!manga) return <div className="text-center py-10">Loading...</div>;
-
-  const coverArt = manga.relationships?.find(r => r.type === 'cover_art');
+  // Safely accessing manga data
+  const coverArt = manga?.relationships?.find(r => r.type === 'cover_art');
   const filename = coverArt?.attributes?.fileName;
   const imageUrl = filename
     ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.512.jpg`
     : 'https://placehold.co/300x450?text=No+Cover';
+
+  if (!manga) return <div className="text-center py-10">Loading...</div>;
 
   return (
     <div className="bg-gray-900 min-h-screen text-white p-20">
@@ -99,7 +143,6 @@ export default function MangaDetail() {
             {/* Chapter Table */}
             <div>
               <h2 className="text-xl font-semibold mb-2">Chapters</h2>
-              {/* Search Bar */}
               <div className="mb-4 flex items-center">
                 <input
                   type="text"
@@ -136,18 +179,20 @@ export default function MangaDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedChapters.length === 0 ? (
+                  {currentChapters.length === 0 ? (
                     <tr>
                       <td colSpan="3" className="text-center text-gray-500 py-4">
                         No chapters found
                       </td>
                     </tr>
                   ) : (
-                    sortedChapters.map((ch) => {
+                    currentChapters.map((ch) => {
                       const formattedDate = formatDate(ch.attributes?.createdAt);
 
+                      const chapterKey = uuidv4(); 
+
                       return (
-                        <tr key={ch.id} className="border-t border-gray-700">
+                        <tr key={chapterKey} className="border-t border-gray-700">
                           <td className="p-2">
                             <Link
                               to={`/reader/${id}/${ch.id}`}
@@ -164,6 +209,29 @@ export default function MangaDetail() {
                   )}
                 </tbody>
               </table>
+
+              {/* Pagination */}
+              <div className="flex justify-between mt-4">
+                {hasPreviousPage && (
+                  <button
+                    onClick={handlePreviousPage}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600"
+                  >
+                    Previous
+                  </button>
+                )}
+                {hasNextPage && !isLoading && (
+                  <button
+                    onClick={handleNextPage}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 ml-auto"
+                  >
+                    Next
+                  </button>
+                )}
+                {isLoading && (
+                  <div className="text-white ml-auto py-2">Loading...</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -172,19 +240,15 @@ export default function MangaDetail() {
         <div className="mt-10">
           <h2 className="text-2xl font-bold mb-4">More Info</h2>
           <ul>
-            <li><strong>Artists:</strong> {getMangaAttribute(manga.attributes?.artists)}</li>
-            <li><strong>Authors:</strong> {getMangaAttribute(manga.attributes?.authors)}</li>
-            <li><strong>Genres:</strong> {getMangaAttribute(manga.attributes?.genres)}</li>
-            <li><strong>Theme:</strong> {manga.attributes?.theme || 'N/A'}</li>
-            <li><strong>Format:</strong> {manga.attributes?.format || 'N/A'}</li>
-            <li><strong>Publishers:</strong> {getMangaAttribute(manga.attributes?.publishers)}</li>
+            <li><strong>Artists:</strong> {manga.relationships?.filter(r => r.type === 'artist').map(r => r.attributes.name).join(', ') || 'N/A'}</li>
+            <li><strong>Authors:</strong> {manga.relationships?.filter(r => r.type === 'author').map(r => r.attributes.name).join(', ') || 'N/A'}</li>
+            <li><strong>Genres:</strong> {manga.attributes?.tags?.filter(tag => tag.attributes?.group === 'genre').map(tag => tag.attributes?.name?.en).join(', ') || 'N/A'}</li>
+            <li><strong>Theme:</strong> {manga.attributes?.tags?.filter(tag => tag.attributes?.group === 'theme').map(tag => tag.attributes?.name?.en).join(', ') || 'N/A'}</li>
+            <li><strong>Format:</strong> {manga.attributes?.tags?.filter(tag => tag.attributes?.group === 'format').map(tag => tag.attributes?.name?.en).join(', ') || 'N/A'}</li>
+            <li><strong>Publisher:</strong> {manga.relationships?.find(r => r.type === 'creator')?.attributes?.username || 'N/A'}</li>
+            <li><strong>Year:</strong> {manga.attributes?.year || 'N/A'}</li>
+            <li><strong>Content Rating:</strong> {manga.attributes?.contentRating || 'N/A'}</li>
           </ul>
-        </div>
-
-        {/* Relations Section */}
-        <div className="mt-10">
-          <h2 className="text-2xl font-bold mb-4">Relations</h2>
-          <p>{manga.relationships?.find(r => r.type === 'related')?.attributes?.title || 'No related manga'}</p>
         </div>
 
         {/* Tags Section */}
@@ -192,11 +256,8 @@ export default function MangaDetail() {
           <h2 className="text-2xl font-bold mb-4">Tags</h2>
           <div className="flex flex-wrap gap-2">
             {manga.attributes?.tags?.map((tag, index) => (
-              <span
-                key={index}
-                className="bg-gray-700 text-white px-3 py-1 rounded-full text-sm"
-              >
-                {tag.name}
+              <span key={index} className="bg-gray-700 text-white px-3 py-1 rounded-full text-sm">
+                {tag.attributes?.name?.en || 'N/A'}
               </span>
             ))}
           </div>

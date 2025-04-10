@@ -4,6 +4,7 @@ const API = axios.create({
   baseURL: 'https://api.mangadex.org'
 });
 
+// Existing API call for fetching the manga list
 export const getMangaList = async (query = "", offset = 0, tag = "") => {
   const params = {
     title: query,
@@ -21,21 +22,30 @@ export const getMangaList = async (query = "", offset = 0, tag = "") => {
   return res.data.data;
 };
 
-
+// Exporting getMangaById
 export const getMangaById = async (id) => {
   const res = await API.get(`/manga/${id}`, {
     params: {
-      includes: ["cover_art"]
+      includes: ["cover_art", "author", "artist", "tag", "creator"]
     }
   });
   return res.data.data;
 };
 
-export const getChaptersByMangaId = async (id) => {
-  const res = await API.get(`/chapter?manga=${id}&translatedLanguage[]=en`);
+// **Fix**: Export the getChaptersByMangaId function
+export const getChaptersByMangaId = async (id, limit = 100, offset = 0) => {
+  const res = await API.get(`/chapter`, {
+    params: {
+      manga: id,
+      limit: limit,       // Increase this number to fetch more chapters
+      offset: offset,     // For pagination, adjust the offset as needed
+      includes: ["user"]  // Include relationships if necessary
+    }
+  });
   return res.data.data;
 };
 
+// Exporting getPagesByChapterId
 export const getPagesByChapterId = async (chapterId) => {
   const res = await API.get(`/at-home/server/${chapterId}`);
   return res.data;
