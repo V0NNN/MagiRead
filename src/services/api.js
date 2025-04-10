@@ -7,7 +7,7 @@ const API = axios.create({
 export const getMangaList = async (query = "", offset = 0, tag = "") => {
   const params = {
     title: query,
-    limit: 20,
+    limit: 90,
     offset: offset,
     includes: ["cover_art"],
     availableTranslatedLanguage: ["en"]
