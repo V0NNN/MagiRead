@@ -107,7 +107,7 @@ export default function Reader() {
   return (
     <div className="bg-gray-900 min-h-screen text-white p-0 flex flex-col">
       {/* Image Pages */}
-      <div className="flex justify-center flex-wrap gap-4 flex-grow">
+      <div className="flex justify-center items-center flex-col gap-4 flex-grow" style={{ width: '50%', margin: '0 auto' }}>
         {pages.map((page, i) => (
           <img
             key={i}
@@ -119,7 +119,7 @@ export default function Reader() {
           />
         ))}
       </div>
-
+  
       {/* Image Size Control */}
       <div
         className={`fixed bottom-20 left-20 flex items-center gap-4 transition-opacity duration-500 ${isButtonsVisible ? 'opacity-100' : 'opacity-0'}`}
@@ -141,7 +141,7 @@ export default function Reader() {
           +
         </button>
       </div>
-
+  
       {/* Navigation Buttons */}
       <div className="flex-grow flex justify-center items-center mb-8 pt-10">
         <div className="w-full flex justify-between">
@@ -155,7 +155,7 @@ export default function Reader() {
               Previous
             </button>
           )}
-
+  
           {/* Next Button */}
           <button
             ref={nextButtonRef}
@@ -168,4 +168,5 @@ export default function Reader() {
       </div>
     </div>
   );
+  
 }
