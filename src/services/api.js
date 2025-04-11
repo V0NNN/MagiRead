@@ -22,15 +22,23 @@ const proxyRequest = async (params, retries = 3, delay = 1000) => {
   }
 };
 
-export const getMangaList = async (filter = '', page = 1) => {
+export const getMangaList = async (filter = "", page = 1) => {
   const params = {
-    endpoint: '/manga',
-    title: filter,
+    endpoint: "/manga",
     limit: 90,
     offset: (page - 1) * 90,
-    includes: ['cover_art'],
-    availableTranslatedLanguage: ['en'],
+    includes: ["cover_art"],
+    availableTranslatedLanguage: ["en"],
   };
+
+  if (filter === "hot") {
+    params["order[followedCount]"] = "desc";
+  } else if (filter === "new") {
+    params["order[latestUploadedChapter]"] = "desc";
+  } else if (filter) {
+    params.title = filter;
+  }
+
   return await proxyRequest(params);
 };
 

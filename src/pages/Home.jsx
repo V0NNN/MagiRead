@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa"; // Added chevron icons for carousel buttons
 import { HashLoader } from "react-spinners";
-import { getLatestChapterByMangaId } from "../services/api";
-import { getMangaList } from "../services/api";
+import { getLatestChapterByMangaId, getMangaList, getMangaById } from "../services/api";
 import axios from "axios";
 
 export default function Home({ isLoggingOut }) {
@@ -15,6 +14,10 @@ export default function Home({ isLoggingOut }) {
   const [pagePopular, setPagePopular] = useState(1); // Separate page state for hot
   const [pageUpdates, setPageUpdates] = useState(1); // Separate page state for new chapters
   const [myListChapters, setMyListChapters] = useState([]);
+  const [loadedMangaIds, setLoadedMangaIds] = useState(new Set());
+  const [loadingUpdates, setLoadingUpdates] = useState(false);
+
+  const token = localStorage.getItem("userToken");
 
   const fetchFollowedChapters = async () => {
     const token = localStorage.getItem("userToken");
@@ -48,7 +51,7 @@ export default function Home({ isLoggingOut }) {
       
           while (attempt < maxRetries) {
             try {
-              const mangaRes = await axios.get(`https://api.mangadex.org/manga/${mangaId}?includes[]=cover_art`);
+              const mangaRes = await getMangaById(mangaId);;
               mangaData = mangaRes.data.data;
               break;
             } catch (err) {
@@ -81,6 +84,63 @@ export default function Home({ isLoggingOut }) {
       console.error("Error fetching followed chapters:", error);
     }
   };
+
+  const loadFollowedMangaUpdates = useCallback(async () => {
+    const token = localStorage.getItem("userToken");
+  
+    if (!token || loadingUpdates) return;
+    setLoadingUpdates(true);
+  
+    try {
+      const [readingRes, customListRes] = await Promise.all([
+        axios.get("/api/reading-status", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get("/api/custom-lists", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+  
+      const readingIds = readingRes.data.map((entry) => entry.mangaId);
+      const customIds = customListRes.data.flatMap((list) => list.mangaIds);
+      const allMangaIds = [...new Set([...readingIds, ...customIds])];
+  
+      // Filter out already loaded
+      const newMangaIds = allMangaIds.filter((id) => !loadedMangaIds.has(id));
+      const limitedIds = newMangaIds.slice(0, 10);
+  
+      const fetchedManga = await Promise.all(
+        limitedIds.map(async (id) => {
+          try {
+            const res = await getMangaById(id);
+            return res?.data?.data || null;
+          } catch (err) {
+            console.error("Error fetching manga:", err);
+            return null;
+          }
+        })
+      );
+  
+      const validManga = fetchedManga.filter(Boolean);
+  
+      setUpdates((prev) => {
+        const combined = [...prev, ...validManga];
+        const uniqueMap = new Map();
+        combined.forEach((m) => uniqueMap.set(m.id, m));
+        return [...uniqueMap.values()];
+      });
+  
+      setLoadedMangaIds((prevSet) => {
+        const newSet = new Set(prevSet);
+        limitedIds.forEach((id) => newSet.add(id));
+        return newSet;
+      });
+    } catch (err) {
+      console.error("Error loading followed manga:", err);
+    } finally {
+      setLoadingUpdates(false);
+    }
+  }, [loadingUpdates, loadedMangaIds]);
   
 
   // Function to calculate how many hours ago a chapter was uploaded
@@ -156,6 +216,23 @@ export default function Home({ isLoggingOut }) {
     }
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const bottomReached = window.innerHeight + window.scrollY >= document.body.offsetHeight - 200;
+      if (bottomReached && !loadingUpdates) {
+        loadFollowedMangaUpdates();
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [loadFollowedMangaUpdates, loadingUpdates]);
+
+  useEffect(() => {
+    if (token) {
+      loadFollowedMangaUpdates();
+    }
+  }, [token]);
+
   const scrollCarousel = (direction, id = "popular-carousel") => {
     const carousel = document.getElementById(id);
     const scrollAmount = 800;
@@ -175,6 +252,14 @@ export default function Home({ isLoggingOut }) {
     };
   
     requestAnimationFrame(animateScroll);
+  };
+
+  const getCoverUrl = (manga) => {
+    const coverArt = manga.relationships.find((r) => r.type === "cover_art");
+    const filename = coverArt?.attributes?.fileName;
+    return filename
+      ? `http://localhost:5000/api/image-proxy?url=https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
+      : "https://placehold.co/256x360?text=No+Cover";
   };
 
   if (isLoggingOut) {
@@ -223,11 +308,7 @@ export default function Home({ isLoggingOut }) {
                 <p className="text-center text-gray-500 w-full">No new followed chapters.</p>
               ) : (
                 myListChapters.map((manga) => {
-                  const coverArt = manga.relationships.find((r) => r.type === "cover_art");
-                  const filename = coverArt?.attributes?.fileName;
-                  const imageUrl = filename
-                    ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
-                    : "https://placehold.co/256x360?text=No+Cover";
+                  const imageUrl = getCoverUrl(manga);
 
                   return (
                     <Link
@@ -274,7 +355,7 @@ export default function Home({ isLoggingOut }) {
         <div className="relative">
           {/* Left Button */}
           <button
-            onClick={() => scrollCarousel("left", "followed-carousel")}
+            onClick={() => scrollCarousel("left", "popular-carousel")}
             className="absolute left-0 top-0 bottom-0 w-12 text-white flex items-center justify-center hover:bg-gray-600 hover:opacity-80 transition-all duration-600 z-10"
             style={{ height: "100%" }}
           >
@@ -288,11 +369,8 @@ export default function Home({ isLoggingOut }) {
             className="flex overflow-x-hidden space-x-4 pb-2"
           >
             {popular.slice(0, 90).map((manga) => {
-              const coverArt = manga.relationships.find((r) => r.type === "cover_art");
-              const filename = coverArt?.attributes?.fileName;
-              const imageUrl = filename
-                ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
-                : "https://placehold.co/256x360?text=No+Cover";
+              const imageUrl = getCoverUrl(manga);
+
               return (
                 <Link
                   key={`popular-${manga.id}`}
@@ -318,7 +396,7 @@ export default function Home({ isLoggingOut }) {
           </div>
           {/* Right Button */}
           <button
-            onClick={() => scrollCarousel("right")}
+            onClick={() => scrollCarousel("right", "popular-carousel")}
             className="absolute right-0 top-0 bottom-0 w-12 h-12 flex items-center justify-center hover:bg-gray-600 hover:opacity-80 transition-all duration-600 z-10"
             style={{ height: "100%" }}
           >
@@ -339,11 +417,7 @@ export default function Home({ isLoggingOut }) {
             <p className="text-center text-gray-500 w-full">Sorry, no updates available.</p>
           ) : (
             updates.map((manga) => {
-              const coverArt = manga.relationships.find((r) => r.type === "cover_art");
-              const filename = coverArt?.attributes?.fileName;
-              const imageUrl = filename
-                ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
-                : "https://placehold.co/256x360?text=No+Cover";
+              const imageUrl = getCoverUrl(manga);
 
               return (
                 <Link

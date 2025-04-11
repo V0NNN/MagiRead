@@ -4,6 +4,8 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes'); // Import authentication routes
 const readingStatusRoutes = require('./routes/readingStatus');
 const customListRoutes = require('./routes/customList');
+const mangaRoutes = require("./routes/manga");
+const imageProxy = require('./routes/imageProxy');
 
 // MongoDB Atlas Connection String
 const uri = "mongodb+srv://VON:2485GXcGRA80EmHK@magiread.cfggchf.mongodb.net/?retryWrites=true&w=majority&appName=MagiRead";
@@ -11,7 +13,7 @@ const uri = "mongodb+srv://VON:2485GXcGRA80EmHK@magiread.cfggchf.mongodb.net/?re
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const mangaRoutes = require("./routes/manga");
+app.use('/api/image-proxy', imageProxy);
 
 // Middleware
 app.use(cors()); // Enable CORS for cross-origin requests

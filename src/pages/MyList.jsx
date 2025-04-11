@@ -58,7 +58,7 @@ const MyList = () => {
         setCustomMangaData(customMap);
       } catch (err) {
         console.error('Error fetching lists:', err);
-        handleApiError(err, setUser, setTokenExpiredMessage);
+        handleApiError(err, null, setTokenExpiredMessage);
       }
     };
   
@@ -98,7 +98,6 @@ const MyList = () => {
         headers: { Authorization: `Bearer ${userToken}` },
       });
       setReadingStatuses(prev => prev.filter(entry => entry.mangaId !== mangaId));
-      setReadingList((prev) => prev.filter((m) => m.id !== mangaId));
     } catch (err) {
       console.error('Failed to remove from reading list:', err);
     }
