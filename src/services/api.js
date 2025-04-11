@@ -43,11 +43,16 @@ export const getMangaList = async (filter = "", page = 1) => {
 };
 
 export const getMangaById = async (id) => {
-  const params = {
-    endpoint: `/manga/${id}`,
-    includes: ['cover_art', 'author', 'artist', 'tag', 'creator'],
-  };
-  return await proxyRequest(params);
+  try {
+    const response = await proxyRequest({
+      endpoint: `/manga/${id}`,
+      includes: ["cover_art", "author", "artist", "tag", "creator"]
+    });
+
+    return { data: { data: response } };
+  } catch (error) {
+    return null;
+  }
 };
 
 export const getChaptersByMangaId = async (id, limit = 100, offset = 0) => {
