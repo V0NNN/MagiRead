@@ -141,12 +141,12 @@ const MyList = () => {
             placeholder="List Name"
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
-            className="bg-gray-700 p-2 rounded w-full sm:w-1/3"
+            className="bg-gray-700 p-2 rounded w-full sm:w-2/3"
           />
           <select
             value={visibility}
             onChange={(e) => setVisibility(e.target.value)}
-            className="bg-gray-700 p-2 rounded w-full sm:w-1/4"
+            className="bg-gray-700 p-2 rounded w-full sm:w-1/3"
           >
             <option value="private">Private</option>
             <option value="public">Public</option>
