@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { getMangaBulk } from '../services/api';
 import { handleApiError } from '../utils/handleApiError';
+import { FaBookOpen, FaListUl, FaChevronDown, FaTrash } from 'react-icons/fa';
 
 const MyList = () => {
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken"));
@@ -14,6 +15,9 @@ const MyList = () => {
   const [readingMangaData, setReadingMangaData] = useState([]);
   const [customMangaData, setCustomMangaData] = useState({});
   const [tokenExpiredMessage, setTokenExpiredMessage] = useState("");
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterGenre, setFilterGenre] = useState('');
+  const [collapsedLists, setCollapsedLists] = useState({});
 
   useEffect(() => {
     const handleUserLogin = () => {
@@ -110,6 +114,24 @@ const MyList = () => {
     }
   };
 
+  const toggleCollapse = (listId) => {
+    setCollapsedLists(prev => ({ ...prev, [listId]: !prev[listId] }));
+  };
+
+  const formatStatus = (status) => {
+    return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  const filteredReading = readingMangaData.filter((manga) => {
+    const status = readingStatuses.find(s => s.mangaId === manga.id)?.status;
+    const hasStatus = filterStatus ? formatStatus(status) === filterStatus : true;
+    const hasGenre = filterGenre ? manga.attributes?.tags?.some(tag => tag.attributes?.name?.en === filterGenre) : true;
+    return hasStatus && hasGenre;
+  });
+
+  const allStatuses = Array.from(new Set(readingStatuses.map(s => formatStatus(s.status))));
+  const allGenres = Array.from(new Set(readingMangaData.flatMap(m => m.attributes?.tags?.map(tag => tag.attributes?.name?.en)).filter(Boolean)));
+
   if (!userToken) {
     return (
       <div className="bg-gray-900 min-h-screen text-white flex items-center justify-center">
@@ -133,7 +155,8 @@ const MyList = () => {
           {tokenExpiredMessage}
         </div>
       )}
-      <div className="bg-gray-800 p-4 rounded shadow mb-6">
+
+<div className="bg-gray-800 p-4 rounded shadow mb-6">
         <h2 className="text-lg font-semibold mb-2">Create a Custom List</h2>
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <input
@@ -161,9 +184,28 @@ const MyList = () => {
         {createError && <p className="text-red-400 mt-2">{createError}</p>}
       </div>
 
-      <h1 className="text-2xl font-bold mb-4">My Reading List</h1>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {readingMangaData.map((manga) => {
+      <div className="flex gap-4 mb-4">
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="bg-gray-800 text-white p-2 rounded"
+        >
+          <option value="">All Statuses</option>
+          {allStatuses.map((s, idx) => <option key={idx} value={s}>{s}</option>)}
+        </select>
+        <select
+          value={filterGenre}
+          onChange={(e) => setFilterGenre(e.target.value)}
+          className="bg-gray-800 text-white p-2 rounded"
+        >
+          <option value="">All Genres</option>
+          {allGenres.map((g, idx) => <option key={idx} value={g}>{g}</option>)}
+        </select>
+      </div>
+
+      <h1 className="text-2xl font-bold mb-4 flex items-center gap-2"><FaBookOpen /> My Reading List</h1>
+      <div className="flex flex-wrap gap-4">
+        {filteredReading.map((manga) => {
           const coverArt = manga.relationships.find(r => r.type === 'cover_art');
           const filename = coverArt?.attributes?.fileName;
           const coverUrl = filename
@@ -171,48 +213,72 @@ const MyList = () => {
             : 'https://placehold.co/128x192?text=No+Cover';
           const status = readingStatuses.find(s => s.mangaId === manga.id)?.status;
           return (
-            <div key={manga.id} className="bg-gray-800 p-4 rounded shadow relative">
-              <img src={coverUrl} alt="cover" className="w-24 h-36 rounded mb-2" />
-              <p className="font-semibold">{manga.attributes.title?.en || 'Untitled'}</p>
-              <p className="text-sm text-gray-400 capitalize">Status: {status}</p>
-              <Link to={`/manga/${manga.id}`} className="text-blue-400 hover:underline">View</Link>
+            <Link
+              key={manga.id}
+              to={`/manga/${manga.id}`}
+              className="w-[160px] bg-gray-800 rounded-md shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-200 relative"
+            >
+              <img src={coverUrl} alt={manga.attributes.title?.en} className="rounded-t w-full h-56 object-cover" />
+              <div className="p-2 text-sm">
+                <h3 className="font-semibold line-clamp-2">{manga.attributes.title?.en || "Untitled"}</h3>
+                {status && <p className="text-gray-400 text-xs mt-1">Status: {formatStatus(status)}</p>}
+              </div>
               <button
-                onClick={() => handleRemoveReading(manga.id)}
-                className="absolute top-2 right-2 text-red-400 hover:text-red-600"
-              >
-                Remove
-              </button>
-            </div>
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveReading(manga.id); }}
+                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-xs text-white px-2 py-1 rounded"
+              >Remove</button>
+            </Link>
           );
         })}
       </div>
 
-      <h2 className="text-2xl font-bold mt-8 mb-4">My Custom Lists</h2>
+      <h2 className="text-2xl font-bold mt-8 mb-4 flex items-center gap-2"><FaListUl /> My Custom Lists</h2>
       {customLists.map((list) => (
         <div key={list._id} className="mb-6">
-          <h3 className="text-xl font-semibold mb-2">{list.name} ({list.visibility})</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {(customMangaData[list._id] || []).map((manga) => {
-              const coverArt = manga.relationships.find(r => r.type === 'cover_art');
-              const filename = coverArt?.attributes?.fileName;
-              const coverUrl = filename
-                ? `http://localhost:5000/api/image-proxy?url=https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
-                : 'https://placehold.co/128x192?text=No+Cover';
-              return (
-                <div key={manga.id} className="bg-gray-700 p-4 rounded shadow relative">
-                  <img src={coverUrl} alt="cover" className="w-24 h-36 rounded mb-2" />
-                  <p className="font-semibold">{manga.attributes.title?.en || 'Untitled'}</p>
-                  <Link to={`/manga/${manga.id}`} className="text-blue-400 hover:underline">View</Link>
-                  <button
-                    onClick={() => handleRemoveFromCustomList(list._id, manga.id)}
-                    className="absolute top-2 right-2 text-red-400 hover:text-red-600"
-                  >
-                    Remove
-                  </button>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold mb-2 cursor-pointer" onClick={() => toggleCollapse(list._id)}>
+              {list.name}
+              <span className={`ml-2 ${list.visibility === 'private' ? 'text-red-400' : 'text-green-400'}`}>
+                ({list.visibility})
+              </span>
+            </h3>
+            <button
+              onClick={() => handleRemoveCustomList(list._id)}
+              className="text-red-400 hover:text-red-600 text-sm flex items-center gap-1"
+            >
+              <FaTrash />
+            </button>
           </div>
+
+          {!collapsedLists[list._id] && (
+            <div className="flex flex-wrap gap-4">
+              {(customMangaData[list._id] || []).map((manga) => {
+                const coverArt = manga.relationships.find(r => r.type === 'cover_art');
+                const filename = coverArt?.attributes?.fileName;
+                const coverUrl = filename
+                  ? `http://localhost:5000/api/image-proxy?url=https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
+                  : 'https://placehold.co/128x192?text=No+Cover';
+                return (
+                  <Link
+                    key={manga.id}
+                    to={`/manga/${manga.id}`}
+                    className="w-[160px] bg-gray-800 rounded-md shadow-md hover:shadow-xl hover:scale-105 transition-transform duration-200 relative"
+                  >
+                    <img src={coverUrl} alt={manga.attributes.title?.en} className="rounded-t w-full h-56 object-cover" />
+                    <div className="p-2 text-sm">
+                      <h3 className="font-semibold line-clamp-2">{manga.attributes.title?.en || "Untitled"}</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveFromCustomList(list._id, manga.id); }}
+                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-xs text-white px-2 py-1 rounded"
+                    >Remove</button>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       ))}
     </div>
