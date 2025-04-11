@@ -3,6 +3,11 @@ import { useEffect, useState } from 'react';
 import { getMangaById, getChaptersByMangaId } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid'; // Importing UUID library
+import {
+  updateReadingStatus,
+  getCustomLists,
+  updateCustomList,
+} from '../services/api';
 
 export default function MangaDetail() {
   const { id } = useParams();
@@ -14,6 +19,8 @@ export default function MangaDetail() {
   const [page, setPage] = useState(1);
   const [hasMoreChapters, setHasMoreChapters] = useState(true); // Track if there are more chapters to load
   const [isLoading, setIsLoading] = useState(false); // Track loading state
+  const [customLists, setCustomLists] = useState([]); // ✅ moved here
+  const token = localStorage.getItem("userToken"); // ✅ also moved here
 
   const mangaPerPage = 80;
   const navigate = useNavigate();
@@ -26,6 +33,12 @@ export default function MangaDetail() {
       });
 
       fetchChapters(1); // Initial fetch for chapters
+
+      if (token) {
+        getCustomLists(token)
+          .then(res => setCustomLists(res.data))
+          .catch(err => console.error('Error fetching lists:', err));
+      }
     } else {
       console.error('Manga id not found!');
     }
@@ -111,6 +124,33 @@ export default function MangaDetail() {
     return chapter.relationships?.find((r) => r.type === 'user')?.attributes?.username || 'Unknown';
   };
 
+  const handleReadingStatusChange = async (e) => {
+    const status = e.target.value;
+    try {
+      await updateReadingStatus(id, status, token);
+      alert(`Status set to "${status}"`);
+    } catch (err) {
+      console.error('Failed to update reading status:', err);
+    }
+  };
+  
+  const handleAddToList = async (listId) => {
+    try {
+      const list = customLists.find(l => l._id === listId);
+      if (!list) return alert("List not found");
+  
+      if (list.mangaIds.includes(id)) {
+        return alert("Manga already in this list");
+      }
+  
+      const updatedIds = [...list.mangaIds, id];
+      await updateCustomList(listId, updatedIds, token);
+      alert("Manga added to list");
+    } catch (err) {
+      console.error('Failed to add to list:', err);
+    }
+  };
+
   // Safely accessing manga data
   const coverArt = manga?.relationships?.find(r => r.type === 'cover_art');
   const filename = coverArt?.attributes?.fileName;
@@ -138,6 +178,44 @@ export default function MangaDetail() {
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-4">{manga.attributes?.title?.en}</h1>
             <p className="text-gray-400 mb-4">{manga.attributes?.description?.en}</p>
+
+            {token && (
+              <>
+                {/* Reading Status Dropdown */}
+                <div className="mb-6">
+                  <label className="block font-semibold mb-2">Add to Reading List</label>
+                  <select
+                    onChange={handleReadingStatusChange}
+                    className="bg-gray-800 text-white p-2 rounded"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select a status</option>
+                    <option value="reading">Reading</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="dropped">Dropped</option>
+                    <option value="plan_to_read">Plan to Read</option>
+                    <option value="completed">Completed</option>
+                    <option value="re_reading">Re-Reading</option>
+                  </select>
+                </div>
+
+                {/* Custom List Buttons */}
+                <div className="mb-6">
+                  <label className="block font-semibold mb-2">Add to Custom List</label>
+                  <div className="flex flex-wrap gap-2">
+                    {customLists.map((list) => (
+                      <button
+                        key={list._id}
+                        onClick={() => handleAddToList(list._id)}
+                        className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white"
+                      >
+                        {list.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Chapter Table */}
             <div>

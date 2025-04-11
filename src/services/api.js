@@ -99,3 +99,23 @@ export const getUserInfo = async (token) => {
   });
   return res.data; // Return the user data
 };
+
+export const updateReadingStatus = (mangaId, status, token) =>
+  axios.post(`/api/reading-status/${mangaId}`, { status }, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const createCustomList = (name, visibility, token) =>
+  axios.post('/api/custom-lists', { name, visibility }, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const updateCustomList = (listId, mangaIds, token) =>
+  axios.put(`/api/custom-lists/${listId}`, { mangaIds }, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const getCustomLists = (token) =>
+  axios.get('/api/custom-lists', {
+    headers: { Authorization: `Bearer ${token}` },
+  });

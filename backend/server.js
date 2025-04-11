@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes'); // Import authentication routes
+const readingStatusRoutes = require('./routes/readingStatus');
+const customListRoutes = require('./routes/customList');
 
 // MongoDB Atlas Connection String
 const uri = "mongodb+srv://VON:2485GXcGRA80EmHK@magiread.cfggchf.mongodb.net/?retryWrites=true&w=majority&appName=MagiRead";
@@ -21,7 +23,12 @@ mongoose.connect(uri) // Removed deprecated options
 // Authentication routes
 app.use('/api/auth', authRoutes); // Mount auth routes to '/api/auth'
 
-// Start Express server
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/reading-status', readingStatusRoutes);
+app.use('/api/custom-lists', customListRoutes);
+
+// Start server LAST
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

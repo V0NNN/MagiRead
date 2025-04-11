@@ -5,7 +5,7 @@ import Reader from '../pages/Reader';
 
 export default function AppRouter() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/manga/:id" element={<MangaDetail />} />
