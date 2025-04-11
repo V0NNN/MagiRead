@@ -11,6 +11,8 @@ const uri = "mongodb+srv://VON:2485GXcGRA80EmHK@magiread.cfggchf.mongodb.net/?re
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const mangaRoutes = require("./routes/manga");
+
 // Middleware
 app.use(cors()); // Enable CORS for cross-origin requests
 app.use(express.json()); // For parsing application/json
@@ -27,6 +29,8 @@ app.use('/api/auth', authRoutes); // Mount auth routes to '/api/auth'
 app.use('/api/auth', authRoutes);
 app.use('/api/reading-status', readingStatusRoutes);
 app.use('/api/custom-lists', customListRoutes);
+
+app.use("/api/manga", mangaRoutes);
 
 // Start server LAST
 app.listen(PORT, () => {

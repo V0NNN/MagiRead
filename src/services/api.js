@@ -1,35 +1,47 @@
 import axios from 'axios';
 
+const apiUrl = "https://api.mangadex.org/";
+
 const API = axios.create({
-  baseURL: 'https://api.mangadex.org'
+  baseURL: apiUrl,
 });
 
 // Existing API call for fetching the manga list
-export const getMangaList = async (query = "", offset = 0, tag = "") => {
+export const getMangaList = async (filter = "", page = 1, retries = 3, delay = 1000) => {
   const params = {
-    title: query,
+    endpoint: "/manga",
+    title: filter,
     limit: 90,
-    offset: offset,
+    offset: (page - 1) * 90,
     includes: ["cover_art"],
-    availableTranslatedLanguage: ["en"]
+    availableTranslatedLanguage: ["en"],
   };
 
-  if (tag) {
-    params["includedTags[]"] = tag;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await axios.get("/api/manga/proxy", { params });
+      return response.data.data;
+    } catch (err) {
+      console.error(`Attempt ${attempt + 1} failed for getMangaList:`, err.message);
+      if (attempt < retries - 1) {
+        await new Promise((res) => setTimeout(res, delay));
+        delay *= 2;
+      } else {
+        return [];
+      }
+    }
   }
-
-  const res = await API.get("/manga", { params });
-  return res.data.data;
 };
 
 // Exporting getMangaById
 export const getMangaById = async (id) => {
-  const res = await API.get(`/manga/${id}`, {
+  const response = await axios.get("/api/manga/proxy", {
     params: {
-      includes: ["cover_art", "author", "artist", "tag", "creator"]
-    }
+      endpoint: `/manga/${id}`,
+      includes: ["cover_art", "author", "artist", "tag", "creator"],
+    },
   });
-  return res.data.data;
+  return response.data.data;
 };
 
 // Fetching chapters based on manga ID
@@ -45,10 +57,25 @@ export const getChaptersByMangaId = async (id, limit = 100, offset = 0) => {
   return res.data.data;
 };
 
-// Fetch the details of a chapter based on its UUID
-export const getChapterDetailsByUUID = async (chapterId) => {
-  const res = await API.get(`/v2/chapters/${chapterId}`);
-  return res.data.data;
+// Fetch the most recent English-translated chapter for a manga by its ID
+export const getLatestChapterByMangaId = async (mangaId) => {
+  try {
+    const response = await axios.get(
+      `https://api.mangadex.org/chapter?manga=${mangaId}&limit=1&translatedLanguage[]=en&order[updatedAt]=desc`
+    );
+
+    const chapter = response.data.data[0];
+    if (!chapter) return null;
+
+    return {
+      id: chapter.id,
+      chapterNumber: chapter.attributes.chapter,
+      updatedAt: chapter.attributes.updatedAt,
+    };
+  } catch (error) {
+    console.error("Error fetching latest chapter:", error);
+    return null;
+  }
 };
 
 // Exporting getPagesByChapterId

@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { getMangaBulk } from '../services/api'; // Import the bulk fetcher
+import { handleApiError } from '../utils/handleApiError';
 
 const MyList = () => {
-  const token = localStorage.getItem("userToken");
+  const [userToken, setUserToken] = useState(localStorage.getItem("userToken"));
   const [readingStatuses, setReadingStatuses] = useState([]);
   const [customLists, setCustomLists] = useState([]);
   const [newListName, setNewListName] = useState('');
@@ -12,18 +13,29 @@ const MyList = () => {
   const [createError, setCreateError] = useState('');
   const [readingMangaData, setReadingMangaData] = useState([]);
   const [customMangaData, setCustomMangaData] = useState({});
+  const [tokenExpiredMessage, setTokenExpiredMessage] = useState("");
 
   useEffect(() => {
-    if (!token) return;
+    const handleUserLogin = () => {
+      const newToken = localStorage.getItem("userToken");
+      setUserToken(newToken);
+    };
+  
+    window.addEventListener("userLogin", handleUserLogin);
+    return () => window.removeEventListener("userLogin", handleUserLogin);
+  }, []);
+
+  useEffect(() => {
+    if (!userToken) return;
   
     const fetchLists = async () => {
       try {
         const [statusRes, customListRes] = await Promise.all([
           axios.get('/api/reading-status', {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${userToken}` },
           }),
           axios.get('/api/custom-lists', {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${userToken}` },
           }),
         ]);
   
@@ -46,11 +58,12 @@ const MyList = () => {
         setCustomMangaData(customMap);
       } catch (err) {
         console.error('Error fetching lists:', err);
+        handleApiError(err, setUser, setTokenExpiredMessage);
       }
     };
   
     fetchLists();
-  }, [token]);
+  }, [userToken]);
 
   const handleCreateList = async () => {
     if (!newListName.trim()) {
@@ -63,7 +76,7 @@ const MyList = () => {
         name: newListName,
         visibility,
       }, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${userToken}` },
       });
   
       setNewListName('');
@@ -71,7 +84,7 @@ const MyList = () => {
       setCreateError('');
       // Refetch lists
       const updated = await axios.get('/api/custom-lists', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${userToken}` },
       });
       setCustomLists(updated.data);
     } catch (err) {
@@ -82,9 +95,10 @@ const MyList = () => {
   const handleRemoveReading = async (mangaId) => {
     try {
       await axios.delete(`/api/reading-status/${mangaId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${userToken}` },
       });
       setReadingStatuses(prev => prev.filter(entry => entry.mangaId !== mangaId));
+      setReadingList((prev) => prev.filter((m) => m.id !== mangaId));
     } catch (err) {
       console.error('Failed to remove from reading list:', err);
     }
@@ -92,38 +106,49 @@ const MyList = () => {
 
   const handleRemoveFromCustomList = async (listId, mangaId) => {
     try {
-      const list = customLists.find(l => l._id === listId);
+      const list = customLists.find((l) => l._id === listId);
       if (!list) return;
   
-      const updatedIds = list.mangaIds.filter(id => id !== mangaId);
+      const updatedIds = list.mangaIds.filter((id) => id !== mangaId);
       await axios.put(`/api/custom-lists/${listId}`, { mangaIds: updatedIds }, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${userToken}` },
       });
   
-      // Update local state
-      setCustomLists(prev =>
-        prev.map(list =>
-          list._id === listId
-            ? { ...list, mangaIds: updatedIds }
-            : list
+      setCustomLists((prevLists) =>
+        prevLists.map((l) =>
+          l._id === listId
+            ? { ...l, manga: l.manga.filter((m) => m.id !== mangaId) }
+            : l
         )
       );
     } catch (err) {
-      console.error('Failed to remove from custom list:', err);
+      console.error("Failed to remove from custom list:", err);
     }
   };
 
-  if (!token) {
+  if (!userToken) {
     return (
-      <div className="text-white p-10 text-center">
-        <h1 className="text-2xl font-bold mb-4">My List</h1>
-        <p className="text-gray-400">You must be logged in to view and manage your lists.</p>
+      <div className="bg-gray-900 min-h-screen text-white flex items-center justify-center">
+        <p className="text-2xl text-gray-300 text-center">
+          <button
+            onClick={() => window.dispatchEvent(new Event("triggerLoginForm"))}
+            className="text-blue-400 hover:underline"
+          >
+            Login
+          </button>
+          <span className="ml-1">to view and manage your lists.</span>
+        </p>
       </div>
     );
   }
 
   return (
     <div className="bg-gray-900 min-h-screen text-white p-20">
+      {tokenExpiredMessage && (
+        <div className="bg-red-500 text-white px-4 py-2 rounded mb-4 text-center">
+          {tokenExpiredMessage}
+        </div>
+      )}
       <div className="bg-gray-800 p-4 rounded shadow mb-6">
         <h2 className="text-lg font-semibold mb-2">Create a Custom List</h2>
         <div className="flex flex-col sm:flex-row items-center gap-4">

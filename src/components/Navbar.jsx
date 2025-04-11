@@ -30,30 +30,61 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
   const searchContainerRef = useRef(); // Reference for the search container
   const navigate = useNavigate();
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false); // NEW
+  const [highlightLogin, setHighlightLogin] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Check if user is logged in on initial load
   useEffect(() => {
     const token = localStorage.getItem("userToken");
+  
     if (token) {
-      setUser({ token }); // Set user if token exists
+      const [, payload] = token.split('.');
+      try {
+        const decoded = JSON.parse(atob(payload));
+        const now = Date.now() / 1000;
+  
+        if (decoded.exp && decoded.exp > now) {
+          setUser({ token }); // ✅ Token is still valid
+        } else {
+          console.log('Token expired, logging out...');
+          localStorage.removeItem("userToken");
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Failed to decode token:', err);
+        localStorage.removeItem("userToken");
+        setUser(null);
+      }
     }
+
+    const handleTriggerLogin = () => {
+      setLoginFormVisible(true);
+      setDropdownOpen(false); // Close avatar dropdown if open
+    };
+  
+    window.addEventListener("triggerLoginForm", handleTriggerLogin);
+    return () => window.removeEventListener("triggerLoginForm", handleTriggerLogin);
   }, []);
 
   // Handle logout
   const handleLogout = () => {
-    console.log("Logging out... Removing token from localStorage");
-    // Remove the token from localStorage
-    localStorage.removeItem("userToken");
-
-    // Optionally reset the user state
-    setUser(null); // Reset user state
-
-    // Close the dropdown and show the login form again
-    setDropdownOpen(false);
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      localStorage.removeItem("userToken");
+      setUser(null);
+      setDropdownOpen(false);
+      navigate("/");
+      setIsLoggingOut(false); // reset after redirect
+    }, 100); // simulate delay
   };
 
   // Handle login form submission
   const handleLoginSubmit = async () => {
+    if (!loginInput || !passwordInput) {
+      setHighlightLogin(true);
+      return;
+    }
+  
     try {
       const response = await fetch("http://localhost:5000/api/auth/signin", {
         method: "POST",
@@ -65,21 +96,29 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
           password: passwordInput,
         }),
       });
-
+  
       const data = await response.json();
       if (response.ok) {
-        setLoginFormVisible(false); // Close login form after successful login
-        localStorage.setItem('userToken', data.token); // Save token to local storage
-        setUser({ token: data.token }); // Update user state
-        setLoginInput(""); // Clear login input field
-        setPasswordInput(""); // Clear password input field
-        navigate('/'); // Navigate to home after successful login
+        setLoginFormVisible(false);
+        localStorage.setItem('userToken', data.token);
+        window.dispatchEvent(new Event("userLogin"));
+        setUser({ token: data.token });
+        setLoginInput("");
+        setPasswordInput("");
+        setHighlightLogin(false);
+        navigate(location.pathname === "/mylist" ? "/mylist" : "/");
       } else {
-        setLoginError(data.message); // Show error if login fails
+        setLoginError(data.message);
       }
     } catch (error) {
       console.error("Login error:", error);
       setLoginError("Login failed. Please check your credentials.");
+    }
+  };  
+
+  const handleKeyDownLogin = (e) => {
+    if (e.key === 'Enter') {
+      handleLoginSubmit();
     }
   };
 
@@ -381,14 +420,17 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
                     placeholder="Username or Email"
                     value={loginInput}
                     onChange={(e) => setLoginInput(e.target.value)}
-                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                    onKeyDown={handleKeyDownLogin}
+                    className={`w-full p-3 mb-6 bg-gray-800 text-md border ${highlightLogin && !loginInput ? 'border-red-500' : 'border-gray-300'} rounded`}
                   />
+
                   <input
                     type="password"
                     placeholder="Password"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    className="w-full p-3 mb-6 bg-gray-800 text-md border border-gray-300 rounded"
+                    onKeyDown={handleKeyDownLogin}
+                    className={`w-full p-3 mb-6 bg-gray-800 text-md border ${highlightLogin && !passwordInput ? 'border-red-500' : 'border-gray-300'} rounded`}
                   />
                   {loginError && (
                     <p className="text-red-500 mt-2 text-sm">{loginError}</p>
