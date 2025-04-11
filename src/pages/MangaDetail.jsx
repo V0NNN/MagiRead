@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { getMangaById, getChaptersByMangaId } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid'; // Importing UUID library
+import { v4 as uuidv4 } from 'uuid';
 import {
   updateReadingStatus,
   getCustomLists,
@@ -17,23 +17,21 @@ export default function MangaDetail() {
   const [sortBy, setSortBy] = useState('chapter');
   const [sortOrder, setSortOrder] = useState('asc');
   const [page, setPage] = useState(1);
-  const [hasMoreChapters, setHasMoreChapters] = useState(true); // Track if there are more chapters to load
-  const [isLoading, setIsLoading] = useState(false); // Track loading state
-  const [customLists, setCustomLists] = useState([]); // ✅ moved here
-  const token = localStorage.getItem("userToken"); // ✅ also moved here
-
+  const [hasMoreChapters, setHasMoreChapters] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [customLists, setCustomLists] = useState([]);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [listMessage, setListMessage] = useState('');
+  const token = localStorage.getItem("userToken");
   const mangaPerPage = 80;
   const navigate = useNavigate();
 
-  // Fetch Manga Details
   useEffect(() => {
     if (id) {
       getMangaById(id).then(data => {
         setManga(data?.data?.data);
       });
-
-      fetchChapters(1); // Initial fetch for chapters
-
+      fetchChapters(1);
       if (token) {
         getCustomLists(token)
           .then(res => setCustomLists(res.data))
@@ -44,56 +42,38 @@ export default function MangaDetail() {
     }
   }, [id]);
 
-  // Fetch Chapters
   const fetchChapters = async (page = 1) => {
-    const limit = 100; // Maximum number of chapters per API request
+    const limit = 100;
     const offset = (page - 1) * limit;
-
-    setIsLoading(true); // Set loading to true while fetching chapters
-
+    setIsLoading(true);
     try {
       const data = await getChaptersByMangaId(id, limit, offset);
-
-      // If no new chapters were returned, set hasMoreChapters to false
       if (data.length === 0) {
         setHasMoreChapters(false);
       } else {
-        // Append new chapters to the existing list
-        setChapters(prevChapters => [...prevChapters, ...data]);
+        setChapters(prev => [...prev, ...data]);
       }
     } catch (error) {
       console.error('Error fetching chapters:', error);
     } finally {
-      setIsLoading(false); // Set loading to false once the fetch is complete
+      setIsLoading(false);
     }
   };
 
-  // Sort chapters by chapter number or created date
   const sortChapters = (chapters) => {
-    return chapters.sort((a, b) => {
-      const chapterA = parseInt(a.attributes.chapter, 10);
-      const chapterB = parseInt(b.attributes.chapter, 10);
-      return chapterA - chapterB; // Sort chapters numerically
-    });
+    return chapters.sort((a, b) => parseInt(a.attributes.chapter) - parseInt(b.attributes.chapter));
   };
 
-  // Filter unique chapters and sort them
-  const uniqueChapters = chapters.filter((value, index, self) => 
-    index === self.findIndex((t) => (
-      t.attributes.chapter === value.attributes.chapter
-    ))
+  const uniqueChapters = chapters.filter((value, index, self) =>
+    index === self.findIndex((t) => t.attributes.chapter === value.attributes.chapter)
   );
-  
+
   const sortedChapters = sortChapters(uniqueChapters);
-
-  // Pagination: Show current page chapters
   const filteredChapters = sortedChapters.filter((ch) =>
-    ch.attributes?.chapter != null && ch.attributes?.chapter.toString().includes(searchQuery)
+    ch.attributes?.chapter?.toString().includes(searchQuery)
   );
-
   const currentChapters = filteredChapters.slice((page - 1) * mangaPerPage, page * mangaPerPage);
-  
-  // Handle next and previous page actions
+
   const handleNextPage = () => {
     if (hasMoreChapters) {
       const nextPage = page + 1;
@@ -102,56 +82,43 @@ export default function MangaDetail() {
     }
   };
 
-  const handlePreviousPage = () => {
-    const prevPage = page > 1 ? page - 1 : 1;
-    setPage(prevPage);
-  };
-
+  const handlePreviousPage = () => setPage(prev => (prev > 1 ? prev - 1 : 1));
   const hasNextPage = hasMoreChapters && filteredChapters.length > page * mangaPerPage;
   const hasPreviousPage = page > 1;
 
-  // Format date
   const formatDate = (date) => {
     const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   };
 
-  // Get uploader info
-  const getUploader = (chapter) => {
-    return chapter.relationships?.find((r) => r.type === 'user')?.attributes?.username || 'Unknown';
-  };
+  const getUploader = (chapter) => chapter.relationships?.find((r) => r.type === 'user')?.attributes?.username || 'Unknown';
 
   const handleReadingStatusChange = async (e) => {
     const status = e.target.value;
     try {
       await updateReadingStatus(id, status, token);
-      alert(`Status set to "${status}"`);
+      setStatusMessage(`Reading status updated to "${status}".`);
+      setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
       console.error('Failed to update reading status:', err);
     }
   };
-  
+
   const handleAddToList = async (listId) => {
     try {
       const list = customLists.find(l => l._id === listId);
-      if (!list) return alert("List not found");
-  
-      if (list.mangaIds.includes(id)) {
-        return alert("Manga already in this list");
-      }
-  
+      if (!list) return setListMessage("⚠️ List not found.");
+      if (list.mangaIds.includes(id)) return setListMessage("📚 Manga already exists in this list.");
+
       const updatedIds = [...list.mangaIds, id];
       await updateCustomList(listId, updatedIds, token);
-      alert("Manga added to list");
+      setListMessage("✅ Manga successfully added to the list.");
+      setTimeout(() => setListMessage(''), 3000);
     } catch (err) {
       console.error('Failed to add to list:', err);
     }
   };
 
-  // Safely accessing manga data
   const coverArt = manga?.relationships?.find(r => r.type === 'cover_art');
   const filename = coverArt?.attributes?.fileName;
   const imageUrl = filename
@@ -163,32 +130,23 @@ export default function MangaDetail() {
   return (
     <div className="bg-gray-900 min-h-screen text-white p-20">
       <div className="max-w-screen-xl mx-auto">
+        {statusMessage && <div className="mb-4 bg-green-700 text-white text-sm px-4 py-2 rounded">{statusMessage}</div>}
+        {listMessage && <div className="mb-4 bg-blue-700 text-white text-sm px-4 py-2 rounded">{listMessage}</div>}
+
         <div className="flex flex-col md:flex-row gap-6">
-          {/* Manga Cover */}
           <div className="flex-shrink-0 w-60 md:w-72">
-            <img
-              src={imageUrl}
-              alt={manga.attributes?.title?.en}
-              onError={(e) => (e.target.src = 'https://placehold.co/300x450?text=No+Cover')}
-              className="rounded-lg shadow-lg"
-            />
+            <img src={imageUrl} alt={manga.attributes?.title?.en} onError={(e) => (e.target.src = 'https://placehold.co/300x450?text=No+Cover')} className="rounded-lg shadow-lg" />
           </div>
 
-          {/* Manga Details */}
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-4">{manga.attributes?.title?.en}</h1>
             <p className="text-gray-400 mb-4">{manga.attributes?.description?.en}</p>
 
             {token && (
               <>
-                {/* Reading Status Dropdown */}
                 <div className="mb-6">
                   <label className="block font-semibold mb-2">Add to Reading List</label>
-                  <select
-                    onChange={handleReadingStatusChange}
-                    className="bg-gray-800 text-white p-2 rounded"
-                    defaultValue=""
-                  >
+                  <select onChange={handleReadingStatusChange} className="bg-gray-800 text-white p-2 rounded" defaultValue="">
                     <option value="" disabled>Select a status</option>
                     <option value="reading">Reading</option>
                     <option value="on_hold">On Hold</option>
@@ -199,16 +157,11 @@ export default function MangaDetail() {
                   </select>
                 </div>
 
-                {/* Custom List Buttons */}
                 <div className="mb-6">
                   <label className="block font-semibold mb-2">Add to Custom List</label>
                   <div className="flex flex-wrap gap-2">
                     {customLists.map((list) => (
-                      <button
-                        key={list._id}
-                        onClick={() => handleAddToList(list._id)}
-                        className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white"
-                      >
+                      <button key={list._id} onClick={() => handleAddToList(list._id)} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white">
                         {list.name}
                       </button>
                     ))}
@@ -217,39 +170,19 @@ export default function MangaDetail() {
               </>
             )}
 
-            {/* Chapter Table */}
             <div>
               <h2 className="text-xl font-semibold mb-2">Chapters</h2>
               <div className="mb-4 flex items-center">
-                <input
-                  type="text"
-                  placeholder="Search by chapter"
-                  className="p-2 rounded bg-gray-800 text-white w-full md:w-56"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  value={searchQuery}
-                />
+                <input type="text" placeholder="Search by chapter" className="p-2 rounded bg-gray-800 text-white w-full md:w-56" onChange={(e) => setSearchQuery(e.target.value)} value={searchQuery} />
               </div>
 
-              {/* Chapter Table */}
               <table className="min-w-full table-auto text-sm">
                 <thead>
                   <tr>
-                    <th
-                      onClick={() => {
-                        setSortBy('chapter');
-                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                      }}
-                      className="cursor-pointer text-left p-2"
-                    >
+                    <th onClick={() => { setSortBy('chapter'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} className="cursor-pointer text-left p-2">
                       Chap {sortBy === 'chapter' && (sortOrder === 'asc' ? '↓' : '↑')}
                     </th>
-                    <th
-                      onClick={() => {
-                        setSortBy('uploaded');
-                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                      }}
-                      className="cursor-pointer text-left p-2"
-                    >
+                    <th onClick={() => { setSortBy('uploaded'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} className="cursor-pointer text-left p-2">
                       Uploaded {sortBy === 'uploaded' && (sortOrder === 'asc' ? '↓' : '↑')}
                     </th>
                     <th className="text-left p-2">Uploader</th>
@@ -257,24 +190,14 @@ export default function MangaDetail() {
                 </thead>
                 <tbody>
                   {currentChapters.length === 0 ? (
-                    <tr>
-                      <td colSpan="3" className="text-center text-gray-500 py-4">
-                        No chapters found
-                      </td>
-                    </tr>
+                    <tr><td colSpan="3" className="text-center text-gray-500 py-4">No chapters found</td></tr>
                   ) : (
                     currentChapters.map((ch) => {
                       const formattedDate = formatDate(ch.attributes?.createdAt);
-
-                      const chapterKey = uuidv4(); 
-
                       return (
-                        <tr key={chapterKey} className="border-t border-gray-700">
+                        <tr key={uuidv4()} className="border-t border-gray-700">
                           <td className="p-2">
-                            <Link
-                              to={`/reader/${id}/${ch.id}`}
-                              className="text-blue-400 hover:underline"
-                            >
+                            <Link to={`/reader/${id}/${ch.id}`} className="text-blue-400 hover:underline">
                               Chapter {ch.attributes?.chapter || 'N/A'}
                             </Link>
                           </td>
@@ -287,27 +210,10 @@ export default function MangaDetail() {
                 </tbody>
               </table>
 
-              {/* Pagination */}
               <div className="flex justify-between mt-4">
-                {hasPreviousPage && (
-                  <button
-                    onClick={handlePreviousPage}
-                    className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600"
-                  >
-                    Previous
-                  </button>
-                )}
-                {hasNextPage && !isLoading && (
-                  <button
-                    onClick={handleNextPage}
-                    className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 ml-auto"
-                  >
-                    Next
-                  </button>
-                )}
-                {isLoading && (
-                  <div className="text-white ml-auto py-2">Loading...</div>
-                )}
+                {hasPreviousPage && <button onClick={handlePreviousPage} className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600">Previous</button>}
+                {hasNextPage && !isLoading && <button onClick={handleNextPage} className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 ml-auto">Next</button>}
+                {isLoading && <div className="text-white ml-auto py-2">Loading...</div>}
               </div>
             </div>
           </div>

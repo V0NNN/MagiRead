@@ -51,10 +51,7 @@ export default function Home({ isLoggingOut }) {
       const results = [];
       const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
-      console.log("🔍 unique followed manga IDs:", uniqueIds);
       for (const mangaId of uniqueIds) {
-        console.log("manga IDs:", mangaId);
-
         try {
           const mangaRes = await getMangaById(mangaId);
           const manga = mangaRes?.data?.data;
@@ -72,7 +69,6 @@ export default function Home({ isLoggingOut }) {
             });
           }
       
-          console.log("🧾 Final Followed Manga Results:", results);
           await delay(1000);
       
         } catch (err) {
@@ -171,8 +167,6 @@ export default function Home({ isLoggingOut }) {
         setPageUpdates(1);
         setUpdates([]);
         fetchManga("new", 1);
-
-        console.log("🪪 Token exists, calling fetchFollowedChapters() - 1");
         fetchFollowedChapters();
       }
     };
@@ -200,7 +194,6 @@ export default function Home({ isLoggingOut }) {
   useEffect(() => {
     if (token) {
       fetchFollowedChapters();
-      console.log("🪪 Token exists, calling fetchFollowedChapters() - 2");
     }
   }, []);
 
