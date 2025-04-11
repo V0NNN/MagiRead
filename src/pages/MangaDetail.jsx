@@ -29,7 +29,7 @@ export default function MangaDetail() {
   useEffect(() => {
     if (id) {
       getMangaById(id).then(data => {
-        setManga(data);
+        setManga(data?.data?.data);
       });
 
       fetchChapters(1); // Initial fetch for chapters
