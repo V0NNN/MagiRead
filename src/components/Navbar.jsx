@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaSearch, FaUserCircle, FaChevronDown, FaSignOutAlt } from 'react-icons/fa'; // Added logout icon
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMangaCache } from '../context/MangaCacheContext';
 
 const CATEGORY_OPTIONS = [
   "Most Popular Webtoon Right Now",
@@ -32,6 +33,7 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false); // NEW
   const [highlightLogin, setHighlightLogin] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { setPopularCache, setUpdatesCache } = useMangaCache();
 
   // Check if user is logged in on initial load
   useEffect(() => {
@@ -69,13 +71,15 @@ export default function Navbar({ onGenreSelect, searchResults, onSearch }) {
   // Handle logout
   const handleLogout = () => {
     setIsLoggingOut(true);
+    setPopularCache([]);     // Clear cache
+    setUpdatesCache([]);     // Clear cache
     setTimeout(() => {
       localStorage.removeItem("userToken");
       setUser(null);
       setDropdownOpen(false);
       navigate("/");
       setIsLoggingOut(false); // reset after redirect
-    }, 100); // simulate delay
+    }, 100);
   };
 
   // Handle login form submission

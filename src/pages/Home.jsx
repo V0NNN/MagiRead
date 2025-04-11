@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { HashLoader } from "react-spinners";
 import { getLatestChapterByMangaId, getMangaList, getMangaById } from "../services/api";
+import { useMangaCache } from "../context/MangaCacheContext";
 import axios from "axios";
 
 // Remove duplicate manga by unique key (ID + updatedAt)
@@ -17,8 +18,13 @@ const dedupeMangaList = (mangaArray) => {
 };
 
 export default function Home({ isLoggingOut }) {
-  const [popular, setPopular] = useState([]);
-  const [updates, setUpdates] = useState([]);
+  const { 
+    popularCache, setPopularCache, 
+    updatesCache, setUpdatesCache 
+  } = useMangaCache();
+
+  const [popular, setPopular] = [popularCache, setPopularCache];
+  const [updates, setUpdates] = [updatesCache, setUpdatesCache];
   const [myListChapters, setMyListChapters] = useState([]);
   const [user, setUser] = useState(null);
   const [pagePopular, setPagePopular] = useState(1);
@@ -191,6 +197,18 @@ export default function Home({ isLoggingOut }) {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, [loadingUpdates, loadFollowedMangaUpdates]);
+
+  useEffect(() => {
+    if (popular.length === 0) {
+      fetchManga("hot", pagePopular);
+    }
+  }, [pagePopular, fetchManga]);
+  
+  useEffect(() => {
+    if (updates.length === 0) {
+      fetchManga("new", pageUpdates);
+    }
+  }, [pageUpdates, fetchManga]);
 
   if (isLoggingOut) {
     return (
