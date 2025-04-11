@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { getMangaBulk } from '../services/api'; // Import the bulk fetcher
+import { getMangaBulk } from '../services/api';
 import { handleApiError } from '../utils/handleApiError';
 
 const MyList = () => {
@@ -20,14 +20,12 @@ const MyList = () => {
       const newToken = localStorage.getItem("userToken");
       setUserToken(newToken);
     };
-  
     window.addEventListener("userLogin", handleUserLogin);
     return () => window.removeEventListener("userLogin", handleUserLogin);
   }, []);
 
   useEffect(() => {
     if (!userToken) return;
-  
     const fetchLists = async () => {
       try {
         const [statusRes, customListRes] = await Promise.all([
@@ -38,16 +36,11 @@ const MyList = () => {
             headers: { Authorization: `Bearer ${userToken}` },
           }),
         ]);
-  
         setReadingStatuses(statusRes.data);
         setCustomLists(customListRes.data);
-
-        // Fetch manga info for reading list
         const readingIds = statusRes.data.map(entry => entry.mangaId);
         const readingDetails = await getMangaBulk(readingIds);
         setReadingMangaData(readingDetails);
-
-        // Fetch manga info for each custom list
         const customMap = {};
         for (const list of customListRes.data) {
           if (list.mangaIds.length > 0) {
@@ -61,7 +54,6 @@ const MyList = () => {
         handleApiError(err, null, setTokenExpiredMessage);
       }
     };
-  
     fetchLists();
   }, [userToken]);
 
@@ -70,7 +62,6 @@ const MyList = () => {
       setCreateError('List name is required');
       return;
     }
-  
     try {
       await axios.post('/api/custom-lists', {
         name: newListName,
@@ -78,11 +69,9 @@ const MyList = () => {
       }, {
         headers: { Authorization: `Bearer ${userToken}` },
       });
-  
       setNewListName('');
       setVisibility('private');
       setCreateError('');
-      // Refetch lists
       const updated = await axios.get('/api/custom-lists', {
         headers: { Authorization: `Bearer ${userToken}` },
       });
@@ -97,9 +86,9 @@ const MyList = () => {
       await axios.delete(`/api/reading-status/${mangaId}`, {
         headers: { Authorization: `Bearer ${userToken}` },
       });
-      setReadingStatuses(prev => prev.filter(entry => entry.mangaId !== mangaId));
+      setReadingMangaData((prev) => prev.filter((m) => m.id !== mangaId));
     } catch (err) {
-      console.error('Failed to remove from reading list:', err);
+      console.error("Failed to remove from reading list:", err);
     }
   };
 
@@ -107,19 +96,15 @@ const MyList = () => {
     try {
       const list = customLists.find((l) => l._id === listId);
       if (!list) return;
-  
       const updatedIds = list.mangaIds.filter((id) => id !== mangaId);
       await axios.put(`/api/custom-lists/${listId}`, { mangaIds: updatedIds }, {
         headers: { Authorization: `Bearer ${userToken}` },
       });
-  
-      setCustomLists((prevLists) =>
-        prevLists.map((l) =>
-          l._id === listId
-            ? { ...l, manga: l.manga.filter((m) => m.id !== mangaId) }
-            : l
-        )
-      );
+      setCustomMangaData((prev) => {
+        const updated = { ...prev };
+        updated[listId] = updated[listId].filter((m) => m.id !== mangaId);
+        return updated;
+      });
     } catch (err) {
       console.error("Failed to remove from custom list:", err);
     }
@@ -182,11 +167,9 @@ const MyList = () => {
           const coverArt = manga.relationships.find(r => r.type === 'cover_art');
           const filename = coverArt?.attributes?.fileName;
           const coverUrl = filename
-            ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
+            ? `http://localhost:5000/api/image-proxy?url=https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
             : 'https://placehold.co/128x192?text=No+Cover';
-
           const status = readingStatuses.find(s => s.mangaId === manga.id)?.status;
-
           return (
             <div key={manga.id} className="bg-gray-800 p-4 rounded shadow relative">
               <img src={coverUrl} alt="cover" className="w-24 h-36 rounded mb-2" />
@@ -213,9 +196,8 @@ const MyList = () => {
               const coverArt = manga.relationships.find(r => r.type === 'cover_art');
               const filename = coverArt?.attributes?.fileName;
               const coverUrl = filename
-                ? `https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
+                ? `http://localhost:5000/api/image-proxy?url=https://uploads.mangadex.org/covers/${manga.id}/${filename}.256.jpg`
                 : 'https://placehold.co/128x192?text=No+Cover';
-
               return (
                 <div key={manga.id} className="bg-gray-700 p-4 rounded shadow relative">
                   <img src={coverUrl} alt="cover" className="w-24 h-36 rounded mb-2" />
