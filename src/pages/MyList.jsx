@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { getMangaBulk } from '../services/api';
 import { handleApiError } from '../utils/handleApiError';
-import { FaBookOpen, FaListUl, FaChevronDown, FaTrash } from 'react-icons/fa';
+import { FaBookOpen, FaListUl, FaChevronDown, FaChevronRight, FaTrash, FaEdit, FaMinusSquare, FaPlusSquare } from 'react-icons/fa';
 
 const MyList = () => {
   const [userToken, setUserToken] = useState(localStorage.getItem("userToken"));
@@ -18,6 +18,10 @@ const MyList = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
   const [collapsedLists, setCollapsedLists] = useState({});
+  const [allCollapsed, setAllCollapsed] = useState(false);
+  const [editingListId, setEditingListId] = useState(null);
+  const [editingListName, setEditingListName] = useState('');
+  const [editingListVisibility, setEditingListVisibility] = useState('');
 
   useEffect(() => {
     const handleUserLogin = () => {
@@ -114,8 +118,32 @@ const MyList = () => {
     }
   };
 
-  const toggleCollapse = (listId) => {
-    setCollapsedLists(prev => ({ ...prev, [listId]: !prev[listId] }));
+  const handleEditCustomList = async (listId) => {
+    try {
+      await axios.put(`/api/custom-lists/${listId}`, {
+        name: editingListName,
+        visibility: editingListVisibility
+      }, {
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+      const updated = await axios.get('/api/custom-lists', {
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+      setCustomLists(updated.data);
+      setEditingListId(null);
+    } catch (err) {
+      console.error("Failed to update custom list:", err);
+    }
+  };
+
+  const toggleCollapseAll = () => {
+    const toggled = !allCollapsed;
+    const updated = {};
+    customLists.forEach(list => {
+      updated[list._id] = toggled;
+    });
+    setCollapsedLists(updated);
+    setAllCollapsed(toggled);
   };
 
   const formatStatus = (status) => {
@@ -156,54 +184,20 @@ const MyList = () => {
         </div>
       )}
 
-<div className="bg-gray-800 p-4 rounded shadow mb-6">
-        <h2 className="text-lg font-semibold mb-2">Create a Custom List</h2>
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <input
-            type="text"
-            placeholder="List Name"
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-            className="bg-gray-700 p-2 rounded w-full sm:w-2/3"
-          />
-          <select
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value)}
-            className="bg-gray-700 p-2 rounded w-full sm:w-1/3"
-          >
-            <option value="private">Private</option>
-            <option value="public">Public</option>
+      <div className="flex items-center justify-between mt-12 mb-4">
+        <h1 className="text-2xl font-bold mb-4 flex items-center gap-2"><FaBookOpen /> My Reading List</h1>
+        <div className="flex gap-4">
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-gray-800 text-white p-2 rounded">
+            <option value="">All Statuses</option>
+            {allStatuses.map((s, idx) => <option key={idx} value={s}>{s}</option>)}
           </select>
-          <button
-            onClick={handleCreateList}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-          >
-            Create
-          </button>
+          <select value={filterGenre} onChange={(e) => setFilterGenre(e.target.value)} className="bg-gray-800 text-white p-2 rounded">
+            <option value="">All Genres</option>
+            {allGenres.map((g, idx) => <option key={idx} value={g}>{g}</option>)}
+          </select>
         </div>
-        {createError && <p className="text-red-400 mt-2">{createError}</p>}
       </div>
 
-      <div className="flex gap-4 mb-4">
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="bg-gray-800 text-white p-2 rounded"
-        >
-          <option value="">All Statuses</option>
-          {allStatuses.map((s, idx) => <option key={idx} value={s}>{s}</option>)}
-        </select>
-        <select
-          value={filterGenre}
-          onChange={(e) => setFilterGenre(e.target.value)}
-          className="bg-gray-800 text-white p-2 rounded"
-        >
-          <option value="">All Genres</option>
-          {allGenres.map((g, idx) => <option key={idx} value={g}>{g}</option>)}
-        </select>
-      </div>
-
-      <h1 className="text-2xl font-bold mb-4 flex items-center gap-2"><FaBookOpen /> My Reading List</h1>
       <div className="flex flex-wrap gap-4">
         {filteredReading.map((manga) => {
           const coverArt = manga.relationships.find(r => r.type === 'cover_art');
@@ -233,22 +227,37 @@ const MyList = () => {
         })}
       </div>
 
-      <h2 className="text-2xl font-bold mt-8 mb-4 flex items-center gap-2"><FaListUl /> My Custom Lists</h2>
+      <div className="flex items-center justify-between mt-12 mb-4">
+        <h2 className="text-2xl font-bold flex items-center gap-2"><FaListUl /> My Custom Lists</h2>
+        <button onClick={toggleCollapseAll} className="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">
+          {allCollapsed ? (<><FaPlusSquare className="inline mr-1" /> Expand All</>) : (<><FaMinusSquare className="inline mr-1" /> Collapse All</>)}
+        </button>
+      </div>
+
       {customLists.map((list) => (
         <div key={list._id} className="mb-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold mb-2 cursor-pointer" onClick={() => toggleCollapse(list._id)}>
-              {list.name}
-              <span className={`ml-2 ${list.visibility === 'private' ? 'text-red-400' : 'text-green-400'}`}>
-                ({list.visibility})
-              </span>
-            </h3>
-            <button
-              onClick={() => handleRemoveCustomList(list._id)}
-              className="text-red-400 hover:text-red-600 text-sm flex items-center gap-1"
-            >
-              <FaTrash />
-            </button>
+            {editingListId === list._id ? (
+              <div className="flex gap-2 mb-2">
+                <input type="text" value={editingListName} onChange={(e) => setEditingListName(e.target.value)} className="bg-gray-700 p-1 rounded" />
+                <select value={editingListVisibility} onChange={(e) => setEditingListVisibility(e.target.value)} className="bg-gray-700 p-1 rounded">
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                </select>
+                <button onClick={() => handleEditCustomList(list._id)} className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">Save</button>
+                <button onClick={() => setEditingListId(null)} className="bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded text-xs">Cancel</button>
+              </div>
+            ) : (
+              <h3 className="text-xl font-semibold mb-2 cursor-pointer flex items-center" onClick={() => setCollapsedLists(prev => ({ ...prev, [list._id]: !prev[list._id] }))}>
+                {collapsedLists[list._id] ? <FaChevronRight className="mr-2" /> : <FaChevronDown className="mr-2" />}
+                {list.name}
+                <span className={`ml-2 ${list.visibility === 'private' ? 'text-red-400' : 'text-green-400'}`}>({list.visibility})</span>
+              </h3>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => { setEditingListId(list._id); setEditingListName(list.name); setEditingListVisibility(list.visibility); }} className="text-blue-400 hover:text-blue-600 text-sm flex items-center gap-1"><FaEdit /> Edit</button>
+              <button onClick={() => handleRemoveCustomList(list._id)} className="text-red-400 hover:text-red-600 text-sm flex items-center gap-1"><FaTrash /> Delete</button>
+            </div>
           </div>
 
           {!collapsedLists[list._id] && (
@@ -281,6 +290,34 @@ const MyList = () => {
           )}
         </div>
       ))}
+
+      <div className="bg-gray-800 p-4 rounded shadow mb-6">
+        <h2 className="text-lg font-semibold mb-2">Create a Custom List</h2>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <input
+            type="text"
+            placeholder="List Name"
+            value={newListName}
+            onChange={(e) => setNewListName(e.target.value)}
+            className="bg-gray-700 p-2 rounded w-full sm:w-2/3"
+          />
+          <select
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value)}
+            className="bg-gray-700 p-2 rounded w-full sm:w-1/3"
+          >
+            <option value="private">Private</option>
+            <option value="public">Public</option>
+          </select>
+          <button
+            onClick={handleCreateList}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          >
+            Create
+          </button>
+        </div>
+        {createError && <p className="text-red-400 mt-2">{createError}</p>}
+      </div>
     </div>
   );
 };
