@@ -119,3 +119,16 @@ export const getCustomLists = (token) =>
   axios.get('/api/custom-lists', {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+export const getMangaBulk = async (ids = []) => {
+  if (ids.length === 0) return [];
+
+  const res = await axios.get(`https://api.mangadex.org/manga`, {
+    params: {
+      ids,
+      includes: ['cover_art'],
+    },
+  });
+
+  return res.data.data;
+};

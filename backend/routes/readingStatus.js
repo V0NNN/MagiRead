@@ -35,4 +35,19 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
+// DELETE /api/reading-status/:mangaId
+router.delete('/:mangaId', authenticate, async (req, res) => {
+    const { mangaId } = req.params;
+    const userId = req.user._id;
+  
+    try {
+      const result = await ReadingStatus.findOneAndDelete({ userId, mangaId });
+      if (!result) return res.status(404).json({ error: 'Entry not found' });
+  
+      res.json({ message: 'Removed from reading list' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = router;
