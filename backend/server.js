@@ -8,7 +8,7 @@ const mangaRoutes = require("./routes/manga");
 const imageProxy = require('./routes/imageProxy');
 
 // MongoDB Atlas Connection String
-const uri = "mongodb+srv://VON:2485GXcGRA80EmHK@magiread.cfggchf.mongodb.net/?retryWrites=true&w=majority&appName=MagiRead";
+const uri = "mongodb+srv://von:Skata1a!cc!@magiread.bzgsm6j.mongodb.net/?retryWrites=true&w=majority&appName=MagiRead";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
